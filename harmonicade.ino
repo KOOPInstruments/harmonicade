@@ -447,7 +447,6 @@ void loop()
 
     // Set the current time to a variable for this program loop
     currentTime = millis();
-
     // Read and store the digital button states of the scanning matrix
     readDigitalButtons();
 
@@ -499,7 +498,6 @@ void loop()
 
     leftDeckActive = LOW;   // Reset the whole deck activation status variables for the next loop (set in readDigitalButtons function)
     rightDeckActive = LOW;  // Reset the whole deck activation status variables for the next loop (set in readDigitalButtons function)
-
 }
 // END LOOP SECTION
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -509,6 +507,7 @@ void loop()
 
 void diagnosticTest()
 {
+
     for (int buttonNumber = 0; buttonNumber < leftDeckElementCount; buttonNumber++)
     {
         Serial.print(activeButtonsLeft[buttonNumber]);
@@ -1174,7 +1173,7 @@ void runDrumsMode()
         if (controlUpState == HIGH && previousControlUpState == LOW && leftDeckDrumsModeEnabled == LOW)     // If drums mode is currently disabled
         {
             previousControlUpState = HIGH;                                                                  // Lock input state
-            leftDeckLayerNotesEnabled = LOW;                                                                // Make sure that the layer mode is disabled
+            // leftDeckLayerNotesEnabled = LOW;                                                                // Make sure that the layer mode is disabled
             leftDeckDrumsModeEnabled = HIGH;                                                                // Enable drums mode
             leftDeckMidiChannel = drumsChannel;                                                             // Set the left deck channel to drums (MIDI channel 9)
             programChange(drumsChannel, midiProgram[drumsChannel]);                                         // Change the program to what was saved for this channel
@@ -1392,14 +1391,14 @@ void runLoopPedal()
                 loopTrackCounter = loopTrackCounter + 1;                                                    // Increment the counter
             }
         }
-        if (loopTrackCounter > maxTracks - 4)                                                               // If there isn't enough room for 4 potential new tracks (left, right, left layer, right layer)
+        if (loopTrackCounter > maxTracks - 5)                                                               // If there isn't enough room for 4 potential new tracks (left, right, left layer, right layer)
         {
             loopRecordingEnabled = LOW;                                                                     // Disable recording
             goto looperFull;                                                                                // Skip to the end of this section without initializing more tracks
         }
 
         // Initialize new loop iteration
-        noteOn(9, 75, 95);                                                                                  // Play quick alert sound on new loop start (GM Percussion Note #75 Claves)
+        noteOn(9, 75, 127);                                                                                 // Play quick alert sound on new loop start (GM Percussion Note #75 Claves)
         noteOff(9, 75, 0);
         if (leftDeckDrumsModeEnabled == HIGH && loopTrackActive[11] == LOW)                                 // If drums mode is enabled, and the track isn't already in use
         {
@@ -1584,8 +1583,13 @@ void runLoopPedal()
     if (loopActivationState == HIGH && previousLoopActivationState == LOW && loopRecordingEnabled == HIGH && loopPlaybackEnabled == LOW && loopInMemory == HIGH)
     {
         previousLoopActivationState = HIGH;                                             // Lock the input
-        loopDrumsInMemory == HIGH;                                                      // Mark drums in memory
-        leftDeckDrumsModeEnabled = LOW;                                                 // Disable drums mode to allow for immediate playing on second loop
+        if (loopTrackActive[11] == HIGH)
+        {
+            loopDrumsInMemory = HIGH;                                                   // Mark drums in memory to prevent overwriting
+            leftDeckDrumsModeEnabled = LOW;                                             // Disable drums mode
+            leftDeckMidiChannel = leftDeckDefaultMidiChannel;                           // Set the left deck channel back to default (MIDI channel 0)
+            programChange(leftDeckMidiChannel, midiProgram[leftDeckMidiChannel]);       // Change the program back to what was saved for this channel
+        }
         leftDeckMidiChannel = leftDeckDefaultMidiChannel;                               // Set the left deck channel to default (MIDI channel 0)
         programChange(leftDeckMidiChannel, midiProgram[leftDeckMidiChannel]);           // Change the program back to what was saved for this channel
         loopPlaybackEnabled = HIGH;                                                     // Set loop playback to enabled
@@ -1599,11 +1603,18 @@ void runLoopPedal()
         currentLoopIteration = currentLoopIteration + 1;                                // Iterate the loop counter to prime recording for a new loop immediately
     }
 
-    // The looper button is pressed again during a playback/recording loop.  Disable recording.
+    // The looper button is pressed during a playback+recording loop.  Disable recording.
     if (loopActivationState == HIGH && previousLoopActivationState == LOW && loopRecordingEnabled == HIGH && loopPlaybackEnabled == HIGH && loopInMemory == HIGH)
     {
         previousLoopActivationState = HIGH;                                             // Lock the input
         loopRecordingEnabled = LOW;                                                     // Disable recording
+    }
+
+    // The looper button is pressed during a playback loop.  Enable recording for the next loop iteration.
+    if (loopActivationState == HIGH && previousLoopActivationState == LOW && loopRecordingEnabled == LOW && loopPlaybackEnabled == HIGH && loopInMemory == HIGH)
+    {
+        previousLoopActivationState = HIGH;                                             // Lock the input
+        loopRecordingEnabled = HIGH;                                                    // Enable recording
     }
 
     // Playback runs continuously until cancelled
@@ -1615,6 +1626,14 @@ void runLoopPedal()
             if (loopRecordingEnabled == HIGH)
             {
                 currentLoopIteration = currentLoopIteration + 1;
+            }
+
+            if (loopTrackActive[11] == HIGH && loopTrackHighestIndex[11] > 0)
+            {
+                loopDrumsInMemory = HIGH;                                                                   // Mark drums in memory to prevent overwriting
+                leftDeckDrumsModeEnabled = LOW;                                                             // Disable drums mode
+                leftDeckMidiChannel = leftDeckDefaultMidiChannel;                                           // Set the left deck channel back to default (MIDI channel 0)
+                programChange(leftDeckMidiChannel, midiProgram[leftDeckMidiChannel]);                       // Change the program back to what was saved for this channel
             }
 
             // Clean up any potential remaining noteOff events
@@ -1723,7 +1742,7 @@ void playNotes()
                     {
                         noteOn(leftDeckMidiChannel, leftDeckWickiHayden[i] + octave, leftDeckVelocity);     // Send a noteOn for the main left deck channel
                     }
-                    if (leftDeckLayerNotesEnabled == HIGH)                                                  // If layer mode is active
+                    if (leftDeckLayerNotesEnabled == HIGH && leftDeckDrumsModeEnabled == LOW)               // If layer mode is active, and drums is inactive
                     {
                         noteOn(leftDeckLayerMidiChannel, leftDeckWickiHayden[i], multiVelocity);            // Send a noteOn for layer as well
                     }
@@ -1739,7 +1758,7 @@ void playNotes()
                     {
                         noteOff(leftDeckMidiChannel, leftDeckWickiHayden[i] + octave, 0);                   // Send a noteOff
                     }
-                    if (leftDeckLayerNotesEnabled == HIGH)                                                  // If layer mode is active
+                    if (leftDeckLayerNotesEnabled == HIGH && leftDeckDrumsModeEnabled == LOW)               // If layer mode is active, and drums is inactive
                     {
                         noteOff(leftDeckLayerMidiChannel, leftDeckWickiHayden[i], 0);                       // Send a noteOff for layer as well
                     }
@@ -1789,7 +1808,7 @@ void noteOn(byte channel, byte pitch, byte velocity)
     {
         midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
         byte eventType = 1;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
-        byte myTrack = 20;                                                                                          // Initialize track to a value outside the valid range
+        byte myTrack;                                                                                               // Initialize track value
         // Record notes to the looper
         if (loopRecordingEnabled == HIGH && loopInMemory == HIGH && currentLoopIteration == previousLoopIteration)
         {
@@ -1810,21 +1829,29 @@ void noteOn(byte channel, byte pitch, byte velocity)
                 {
                     for (byte trackNumber = 0; trackNumber < maxTracks - 1; trackNumber++)                          // For all tracks in the looper (minus the drum track)
                     {
-                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
+                        }
+                        else
+                        {
+                            goto invalidNoteOn;
                         }
                     }
                     loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
@@ -1839,7 +1866,7 @@ void noteOn(byte channel, byte pitch, byte velocity)
             previousMidiPacketIndex = midiPacketIndex;                                                              // Save the "previous" variable for comparison on next program loop
         }
     }
-
+invalidNoteOn:
     midiEventPacket_t noteOn = {0x09, 0x90 | channel, pitch, velocity};                 // Build a struct containing all of our information in a single packet
     MidiUSB.sendMIDI(noteOn);                                                           // Send packet to the MIDI USB bus
     Serial1.write(0x90 | channel);                                                      // Send event type/channel to the MIDI serial bus
@@ -1862,7 +1889,7 @@ void noteOff(byte channel, byte pitch, byte velocity)
     {
         midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
         byte eventType = 0;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
-        byte myTrack = 20;                                                                                          // Initialize track to a value outside the valid range
+        byte myTrack;                                                                                               // Initialize track value
         // Record notes to the looper
         if (loopRecordingEnabled == HIGH && loopInMemory == HIGH && currentLoopIteration == previousLoopIteration)
         {
@@ -1883,21 +1910,29 @@ void noteOff(byte channel, byte pitch, byte velocity)
                 {
                     for (byte trackNumber = 0; trackNumber < maxTracks - 1; trackNumber++)                          // For all tracks in the looper (minus the drum track)
                     {
-                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
+                        }
+                        else
+                        {
+                            goto invalidNoteOff;
                         }
                     }
                     loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
@@ -1912,7 +1947,7 @@ void noteOff(byte channel, byte pitch, byte velocity)
             previousMidiPacketIndex = midiPacketIndex;                                                              // Save the "previous" variable for comparison on next program loop
         }
     }
-
+invalidNoteOff:
     midiEventPacket_t noteOff = {0x08, 0x80 | channel, pitch, velocity};                // Build a struct containing all of our information in a single packet
     MidiUSB.sendMIDI(noteOff);                                                          // Send packet to the MIDI USB bus
     Serial1.write(0x80 | channel);                                                      // Send event type/channel to the MIDI serial bus
@@ -1935,7 +1970,7 @@ void controlChange(byte channel, byte control, byte value)
     {
         midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
         byte eventType = 2;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
-        byte myTrack = 20;                                                                                          // Initialize track to a value outside the valid range
+        byte myTrack;                                                                                               // Initialize track value
         // Record notes to the looper
         if (loopRecordingEnabled == HIGH && loopInMemory == HIGH && currentLoopIteration == previousLoopIteration)
         {
@@ -1956,21 +1991,29 @@ void controlChange(byte channel, byte control, byte value)
                 {
                     for (byte trackNumber = 0; trackNumber < maxTracks - 1; trackNumber++)                          // For all tracks in the looper (minus the drum track)
                     {
-                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
+                        }
+                        else
+                        {
+                            goto invalidControlChange;
                         }
                     }
                     loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
@@ -1985,7 +2028,7 @@ void controlChange(byte channel, byte control, byte value)
             previousMidiPacketIndex = midiPacketIndex;                                                              // Save the "previous" variable for comparison on next program loop
         }
     }
-
+invalidControlChange:
     midiEventPacket_t event = {0x0B, 0xB0 | channel, control, value};                   // Build a struct containing all of our information in a single packet
     MidiUSB.sendMIDI(event);                                                            // Send packet to the MIDI USB bus
     Serial1.write(0xB0 | channel);                                                      // Send event type/channel to the MIDI serial bus
@@ -2024,7 +2067,7 @@ void pitchBendChange(byte channel, byte lowValue, byte highValue)
     {
         midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
         byte eventType = 3;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
-        byte myTrack = 20;                                                                                          // Initialize track to a value outside the valid range
+        byte myTrack;                                                                                               // Initialize track value
         // Record notes to the looper
         if (loopRecordingEnabled == HIGH && loopInMemory == HIGH && currentLoopIteration == previousLoopIteration)
         {
@@ -2045,21 +2088,29 @@ void pitchBendChange(byte channel, byte lowValue, byte highValue)
                 {
                     for (byte trackNumber = 0; trackNumber < maxTracks - 1; trackNumber++)                          // For all tracks in the looper (minus the drum track)
                     {
-                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
                         }
-                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 0, and set myTrack to this
+                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
                         {
                             myTrack = trackNumber;
+                            break;
+                        }
+                        else
+                        {
+                            goto invalidPitchBendChange;
                         }
                     }
                     loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
@@ -2074,7 +2125,7 @@ void pitchBendChange(byte channel, byte lowValue, byte highValue)
             previousMidiPacketIndex = midiPacketIndex;                                                              // Save the "previous" variable for comparison on next program loop
         }
     }
-
+invalidPitchBendChange:
     midiEventPacket_t bendEvent = {0x0E, 0xE0 | channel, lowValue, highValue};          // Build a struct containing all of our information in a single packet
     MidiUSB.sendMIDI(bendEvent);                                                        // Send packet to the MIDI USB bus
     Serial1.write(0xE0 | channel);                                                      // Send event type/channel to the MIDI serial bus
