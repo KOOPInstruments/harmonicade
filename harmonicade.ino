@@ -388,7 +388,10 @@ byte loopTrackByte4[maxTracks][maxIndexes];                             // Varia
 unsigned long loopTrackEventTime[maxTracks][maxIndexes];                // Variable containing the event time of this index position in the looper track relative to the loopStartTime
 byte hangingNotes[maxTracks][maxIndexes];                               // Track noteOn vs. noteOff, to make sure we don't have any stragglers (the bane of my existence...)
 byte hangingNotesIndex[maxTracks];                                      // Hanging note index counter
-byte loopTrackInputChannel[maxTracks];                                  // The current input MIDI channel assigned to this looper track
+byte leftDeckInputTrack;                                                // Variable for holding the current track number taking input from the left deck (channel 0)
+byte rightDeckInputTrack;                                               // Variable for holding the current track number taking input from the right deck (channel 1)
+byte leftDeckLayerInputTrack;                                           // Variable for holding the current track number taking input from the left layer (channel 2)
+byte rightDeckLayerInputTrack;                                          // Variable for holding the current track number taking input from the right layer (channel 3)
 byte loopTrackOutputChannel[maxTracks];                                 // The output MIDI channel assigned to this looper track (4-15)
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1325,7 +1328,6 @@ void runLoopPedal()
         memset(loopTrackByte3, 0, sizeof(loopTrackByte3));                              // Variable containing the note number, control change number, or the pitch bend low byte of the packet saved to this looper track (0-127)
         memset(loopTrackByte4, 0, sizeof(loopTrackByte4));                              // Variable containing the velocity value, control change value, or the pitch bend high byte of the packet saved to this looper track (0-127)
         memset(loopTrackEventTime, 0, sizeof(loopTrackEventTime));                      // Variable containing the event time of this index position in the looper track relative to the loopStartTime
-        memset(loopTrackInputChannel, 0, sizeof(loopTrackInputChannel));                // The current input MIDI channel assigned to this looper track
         memset(loopTrackOutputChannel, 0, sizeof(loopTrackOutputChannel));              // The output MIDI channel assigned to this looper track (4-15)
         memset(activeButtonsLeft, 0, sizeof(activeButtonsLeft));                        // Pop any active note buttons
         memset(previousActiveButtonsLeft, 0, sizeof(previousActiveButtonsLeft));        // Pop any active note buttons
@@ -1349,7 +1351,6 @@ void runLoopPedal()
         for (int myTrack = 0; myTrack < maxTracks; myTrack++)                                               // For all tracks in the looper
         {
             loopTrackActive[myTrack] = LOW;                                                                 // Mark the tracks open/unused
-            loopTrackInputChannel[myTrack] = 20;                                                            // Set the input channel to a value outside the valid range
         }
         noteOn(9, 66, 95);                                                                                  // Play an alert sound (GM Percussion Note #66 Low Timbale)
         noteOff(9, 66, 0);
@@ -1403,7 +1404,6 @@ void runLoopPedal()
         if (leftDeckDrumsModeEnabled == HIGH && loopTrackActive[11] == LOW)                                 // If drums mode is enabled, and the track isn't already in use
         {
             loopTrackActive[11] = HIGH;                                                                     // Mark the current track as in use
-            loopTrackInputChannel[11] = 9;                                                                  // Take input from the drums channel 9
             loopTrackOutputChannel[11] = loopChannelAssignment[11];                                         // Assign this loop track to the appropriate output channel
             loopTrackIndex[11] = 0;                                                                         // Set the track index to 0
             loopTrackHighestIndex[11] = 0;                                                                  // Set the highest track index to 0
@@ -1435,7 +1435,7 @@ void runLoopPedal()
                 if (loopTrackActive[myTrack] == LOW)                                                        // If this track is LOW meaning unused
                 {
                     loopTrackActive[myTrack] = HIGH;                                                        // Mark the current track as in use
-                    loopTrackInputChannel[myTrack] = 0;                                                     // Take input from left deck channel 0
+                    leftDeckInputTrack = myTrack;
                     loopTrackOutputChannel[myTrack] = loopChannelAssignment[myTrack];                       // Assign this looper track to the appropriate output channel
                     loopTrackIndex[myTrack] = 0;                                                            // Set the track index to 0
                     loopTrackHighestIndex[myTrack] = 0;                                                     // Set the highest track index to 0
@@ -1468,8 +1468,7 @@ void runLoopPedal()
             if (loopTrackActive[myTrack] == LOW)                                                        // If this track is LOW meaning unused
             {
                 loopTrackActive[myTrack] = HIGH;                                                        // Mark the current track as in use
-                loopTrackInputChannel[myTrack] = 1;                                                     // Take input from right deck channel 1
-
+                rightDeckInputTrack = myTrack;
                 loopTrackOutputChannel[myTrack] = loopChannelAssignment[myTrack];                       // Assign this looper track to the appropriate output channel
                 loopTrackIndex[myTrack] = 0;                                                            // Set the track index to 0
                 loopTrackHighestIndex[myTrack] = 0;                                                     // Set the highest track index to 0
@@ -1503,8 +1502,7 @@ void runLoopPedal()
                 if (loopTrackActive[myTrack] == LOW)                                                        // If this track is LOW meaning unused
                 {
                     loopTrackActive[myTrack] = HIGH;                                                        // Mark the current track as in use
-                    loopTrackInputChannel[myTrack] = 2;                                                     // Take input from left  layer channel 2
-
+                    leftDeckLayerInputTrack = myTrack;
                     loopTrackOutputChannel[myTrack] = loopChannelAssignment[myTrack];                       // Assign this looper track to the appropriate output channel
                     loopTrackIndex[myTrack] = 0;                                                            // Set the track index to 0
                     loopTrackHighestIndex[myTrack] = 0;                                                     // Set the highest track index to 0
@@ -1539,8 +1537,7 @@ void runLoopPedal()
                 if (loopTrackActive[myTrack] == LOW)                                                        // If this track is LOW meaning unused
                 {
                     loopTrackActive[myTrack] = HIGH;                                                        // Mark the current track as in use
-                    loopTrackInputChannel[myTrack] = 3;                                                     // Take input from right layer channel 3
-
+                    rightDeckLayerInputTrack = myTrack;
                     loopTrackOutputChannel[myTrack] = loopChannelAssignment[myTrack];                       // Assign this looper track to the appropriate output channel
                     loopTrackIndex[myTrack] = 0;                                                            // Set the track index to 0
                     loopTrackHighestIndex[myTrack] = 0;                                                     // Set the highest track index to 0
@@ -1598,7 +1595,6 @@ void runLoopPedal()
         for (int myTrack = 0; myTrack < maxTracks; myTrack++)                           // For all tracks in the looper
         {
             loopTrackIndex[myTrack] = 0;                                                // Reset all track indexes to 0 in preparation for another trip through the loop
-            loopTrackInputChannel[myTrack] = 20;                                        // Set track input channels to a value outside valid range
         }
         currentLoopIteration = currentLoopIteration + 1;                                // Iterate the loop counter to prime recording for a new loop immediately
     }
@@ -1655,7 +1651,6 @@ void runLoopPedal()
             for (int myTrack = 0; myTrack < maxTracks; myTrack++)                       // For all loop tracks
             {
                 loopTrackIndex[myTrack] = 0;                                            // Set the index counter back to 0 for a new trip through
-                loopTrackInputChannel[myTrack] = 20;                                    // Set track input channels to a value outside valid range
                 if (loopTrackHighestIndex[myTrack] == 0)                                // If the highest index is still 0 (meaning the deck wasn't played)
                 {
                     loopTrackActive[myTrack] = LOW;                                     // Free up the track for more overdubbing
@@ -1825,48 +1820,43 @@ void noteOn(byte channel, byte pitch, byte velocity)
                     loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
                     loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
                 }
-                if (channel >= 0 && channel < 4)                                                                    // If drums mode is disabled
+                if (channel == 0)                                                                                   // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
                 {
-                    for (byte trackNumber = 0; trackNumber < maxTracks - 1; trackNumber++)                          // For all tracks in the looper (minus the drum track)
-                    {
-                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        else
-                        {
-                            goto invalidNoteOn;
-                        }
-                    }
-                    loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                    loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                    loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = pitch;                                       // Save the note/cc number/pitch bend low byte
-                    loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = velocity;                                    // Save the velocity/cc value, pitch bend high byte
-                    loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                    loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                    loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
+                    myTrack = leftDeckInputTrack;
+                    goto continueNoteOn;
                 }
+                if (channel == 1)                                                                                   // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
+                {
+                    myTrack = rightDeckInputTrack;
+                    goto continueNoteOn;
+                }
+                if (channel == 2)                                                                                   // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
+                {
+                    myTrack = leftDeckLayerInputTrack;
+                    goto continueNoteOn;
+                }
+                if (channel == 3)                                                                                   // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
+                {
+                    myTrack = rightDeckLayerInputTrack;
+                    goto continueNoteOn;
+                }
+                else
+                {
+                    goto invalidNoteOn;
+                }
+                continueNoteOn:
+                loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
+                loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
+                loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = pitch;                                       // Save the note/cc number/pitch bend low byte
+                loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = velocity;                                    // Save the velocity/cc value, pitch bend high byte
+                loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
+                loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
+                loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
             }
-            previousMidiPacketIndex = midiPacketIndex;                                                              // Save the "previous" variable for comparison on next program loop
+            invalidNoteOn:
+            previousMidiPacketIndex = midiPacketIndex;                                                          // Save the "previous" variable for comparison on next program loop
         }
     }
-invalidNoteOn:
     midiEventPacket_t noteOn = {0x09, 0x90 | channel, pitch, velocity};                 // Build a struct containing all of our information in a single packet
     MidiUSB.sendMIDI(noteOn);                                                           // Send packet to the MIDI USB bus
     Serial1.write(0x90 | channel);                                                      // Send event type/channel to the MIDI serial bus
@@ -1906,48 +1896,43 @@ void noteOff(byte channel, byte pitch, byte velocity)
                     loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
                     loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
                 }
-                if (channel >= 0 && channel < 4)                                                                    // If drums mode is disabled
+                if (channel == 0)                                                                                   // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
                 {
-                    for (byte trackNumber = 0; trackNumber < maxTracks - 1; trackNumber++)                          // For all tracks in the looper (minus the drum track)
-                    {
-                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        else
-                        {
-                            goto invalidNoteOff;
-                        }
-                    }
-                    loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                    loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                    loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = pitch;                                       // Save the note/cc number/pitch bend low byte
-                    loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = velocity;                                    // Save the velocity/cc value, pitch bend high byte
-                    loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                    loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                    loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
+                    myTrack = leftDeckInputTrack;
+                    goto continueNoteOff;
                 }
+                if (channel == 1)                                                                                   // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
+                {
+                    myTrack = rightDeckInputTrack;
+                    goto continueNoteOff;
+                }
+                if (channel == 2)                                                                                   // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
+                {
+                    myTrack = leftDeckLayerInputTrack;
+                    goto continueNoteOff;
+                }
+                if (channel == 3)                                                                                   // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
+                {
+                    myTrack = rightDeckLayerInputTrack;
+                    goto continueNoteOff;
+                }
+                else
+                {
+                    goto invalidNoteOff;
+                }
+                continueNoteOff:
+                loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
+                loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
+                loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = pitch;                                       // Save the note/cc number/pitch bend low byte
+                loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = velocity;                                    // Save the velocity/cc value, pitch bend high byte
+                loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
+                loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
+                loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
             }
-            previousMidiPacketIndex = midiPacketIndex;                                                              // Save the "previous" variable for comparison on next program loop
+            invalidNoteOff:
+            previousMidiPacketIndex = midiPacketIndex;                                                          // Save the "previous" variable for comparison on next program loop
         }
     }
-invalidNoteOff:
     midiEventPacket_t noteOff = {0x08, 0x80 | channel, pitch, velocity};                // Build a struct containing all of our information in a single packet
     MidiUSB.sendMIDI(noteOff);                                                          // Send packet to the MIDI USB bus
     Serial1.write(0x80 | channel);                                                      // Send event type/channel to the MIDI serial bus
@@ -1966,7 +1951,7 @@ invalidNoteOff:
 void controlChange(byte channel, byte control, byte value)
 {
     // Looper functions (these need to run every time a MIDI packet function is called, otherwise the looper would only intercept the most recent event in any single program loop)
-    if ((channel >= 0 && channel < 4) || channel == 9) // If channel is 0 (left deck), 1 (right deck), 2 (left layer), 3 (right layer), or 9 (drums channel)
+    if (channel == 1 || channel == 3) // If channel is 1 (right deck), or 3 (right layer) -- modulation doesn't affect left deck, and isn't applicable to drums
     {
         midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
         byte eventType = 2;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
@@ -1976,59 +1961,33 @@ void controlChange(byte channel, byte control, byte value)
         {
             if (midiPacketIndex > previousMidiPacketIndex)                                                          // If the MIDI packet index has been incremented (meaning a new event has occurred)
             {
-                if (channel == 9 && leftDeckDrumsModeEnabled == HIGH && loopTrackActive[11] == HIGH && loopDrumsInMemory == LOW)    // If drums mode is enabled, and there isn't already a drums track recorded
+                 if (channel == 1)                                                                                   // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
                 {
-                    myTrack = 11;                                                                                   // Track 11 reserved for MIDI percussion channel 9
-                    loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                    loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                    loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = control;                                     // Save the note/cc number/pitch bend low byte
-                    loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = value;                                       // Save the velocity/cc value, pitch bend high byte
-                    loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                    loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                    loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
+                    myTrack = rightDeckInputTrack;
+                    goto continueControlChange;
                 }
-                if (channel >= 0 && channel < 4)                                                                    // If drums mode is disabled
+                if (channel == 3 && rightDeckLayerNotesEnabled == HIGH)                                             // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
                 {
-                    for (byte trackNumber = 0; trackNumber < maxTracks - 1; trackNumber++)                          // For all tracks in the looper (minus the drum track)
-                    {
-                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        else
-                        {
-                            goto invalidControlChange;
-                        }
-                    }
-                    loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                    loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                    loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = control;                                     // Save the note/cc number/pitch bend low byte
-                    loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = value;                                       // Save the velocity/cc value, pitch bend high byte
-                    loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                    loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                    loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
+                    myTrack = rightDeckLayerInputTrack;
+                    goto continueControlChange;
                 }
+                else
+                {
+                    goto invalidControlChange;
+                }
+                continueControlChange:
+                loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
+                loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
+                loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = control;                                     // Save the note/cc number/pitch bend low byte
+                loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = value;                                       // Save the velocity/cc value, pitch bend high byte
+                loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
+                loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
+                loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
             }
-            previousMidiPacketIndex = midiPacketIndex;                                                              // Save the "previous" variable for comparison on next program loop
+            invalidControlChange:
+            previousMidiPacketIndex = midiPacketIndex;                                                          // Save the "previous" variable for comparison on next program loop
         }
     }
-invalidControlChange:
     midiEventPacket_t event = {0x0B, 0xB0 | channel, control, value};                   // Build a struct containing all of our information in a single packet
     MidiUSB.sendMIDI(event);                                                            // Send packet to the MIDI USB bus
     Serial1.write(0xB0 | channel);                                                      // Send event type/channel to the MIDI serial bus
@@ -2063,7 +2022,7 @@ void programChange(byte channel, byte value)
 void pitchBendChange(byte channel, byte lowValue, byte highValue)
 {
     // Looper functions (these need to run every time a MIDI packet function is called, otherwise the looper would only intercept the most recent event in any single program loop)
-    if ((channel >= 0 && channel < 4) || channel == 9) // If channel is 0 (left deck), 1 (right deck), 2 (left layer), 3 (right layer), or 9 (drums channel)
+    if (channel == 1 || channel == 3) // If channel is 1 (right deck), or 3 (right layer) -- pitch bend doesn't affect left deck, and isn't applicable to drums
     {
         midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
         byte eventType = 3;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
@@ -2073,59 +2032,33 @@ void pitchBendChange(byte channel, byte lowValue, byte highValue)
         {
             if (midiPacketIndex > previousMidiPacketIndex)                                                          // If the MIDI packet index has been incremented (meaning a new event has occurred)
             {
-                if (channel == 9 && leftDeckDrumsModeEnabled == HIGH && loopTrackActive[11] == HIGH && loopDrumsInMemory == LOW)    // If drums mode is enabled, and there isn't already a drums track recorded
+                if (channel == 1)                                                                                   // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
                 {
-                    myTrack = 11;                                                                                   // Track 11 reserved for MIDI percussion channel 9
-                    loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                    loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                    loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = lowValue;                                    // Save the note/cc number/pitch bend low byte
-                    loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = highValue;                                   // Save the velocity/cc value, pitch bend high byte
-                    loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                    loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                    loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
+                    myTrack = rightDeckInputTrack;
+                    goto continuePitchBendChange;
                 }
-                if (channel >= 0 && channel < 4)                                                                    // If drums mode is disabled
+                if (channel == 3 && rightDeckLayerNotesEnabled == HIGH)                                             // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
                 {
-                    for (byte trackNumber = 0; trackNumber < maxTracks - 1; trackNumber++)                          // For all tracks in the looper (minus the drum track)
-                    {
-                        if (channel == 0 && loopTrackInputChannel[trackNumber] == 0 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 1 && loopTrackInputChannel[trackNumber] == 1 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 2 && loopTrackInputChannel[trackNumber] == 2 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        if (channel == 3 && loopTrackInputChannel[trackNumber] == 3 && loopTrackActive[trackNumber] == HIGH)                                // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
-                        {
-                            myTrack = trackNumber;
-                            break;
-                        }
-                        else
-                        {
-                            goto invalidPitchBendChange;
-                        }
-                    }
-                    loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                    loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                    loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = lowValue;                                    // Save the note/cc number/pitch bend low byte
-                    loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = highValue;                                   // Save the velocity/cc value, pitch bend high byte
-                    loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                    loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                    loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
+                    myTrack = rightDeckLayerInputTrack;
+                    goto continuePitchBendChange;
                 }
+                else
+                {
+                    goto invalidPitchBendChange;
+                }
+                continuePitchBendChange:
+                loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
+                loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
+                loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = lowValue;                                    // Save the note/cc number/pitch bend low byte
+                loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = highValue;                                   // Save the velocity/cc value, pitch bend high byte
+                loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
+                loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
+                loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
             }
-            previousMidiPacketIndex = midiPacketIndex;                                                              // Save the "previous" variable for comparison on next program loop
+            invalidPitchBendChange:
+            previousMidiPacketIndex = midiPacketIndex;                                                          // Save the "previous" variable for comparison on next program loop
         }
     }
-invalidPitchBendChange:
     midiEventPacket_t bendEvent = {0x0E, 0xE0 | channel, lowValue, highValue};          // Build a struct containing all of our information in a single packet
     MidiUSB.sendMIDI(bendEvent);                                                        // Send packet to the MIDI USB bus
     Serial1.write(0xE0 | channel);                                                      // Send event type/channel to the MIDI serial bus
