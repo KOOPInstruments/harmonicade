@@ -1,5 +1,5 @@
 # Harmonicade
 
-A modular 5.5 (x2) octave, multi-channel MIDI keyboard using arcade push-buttons in the Wicki-Hayden button layout.
+An add-on 5.5 octave button deck for the Melodicade isomorphic MIDI keyboard.
 
 https://www.koopinstruments.com/instrument-projects/harmonicade
