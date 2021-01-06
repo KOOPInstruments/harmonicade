@@ -1,11 +1,11 @@
-//-----------------------------------------------------------------------------------------------//
-//--                                -----  Harmonicade  -----                                  --//
-//--                  A modular 5.5 (x2) octave, multi-channel MIDI keyboard                   --//
-//--                using arcade push-buttons in the Wicki-Hayden button layout.               --//
-//--                    Written for Teensy 3.6 with MIDIUSB library v1.0.4                     --//
-//--                          Copyright (C) 2019 - Michael Koopman                             --//
-//--                       KOOP Instruments (koopinstruments@gmail.com)                        --//
-//-----------------------------------------------------------------------------------------------//
+//---------------------------------------------------------------------//
+//--                    -----  Harmonicade -----                     --//
+//--       A portable dual-deck multi-channel MIDI keyboard          --//
+//--  using arcade push-buttons in the Wicki-Hayden button layout.   --//
+//--              Copyright (C) 2020 - Michael Koopman               --//
+//--          KOOP Instruments (koopinstruments@gmail.com)           --//
+//-- https://www.koopinstruments.com/instrument-projects/harmonicade --//
+//---------------------------------------------------------------------//
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -20,449 +20,439 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
+//-----------------------------------------------------------------------
 //
 // Hardware Information:
-// Arduino compatible micro-controller with sufficient I/O:
-// Pin requirments:
-//     37 I/O pins in total --
-//         4 analog
-//         32 digital
-//         1 serial TX
-//     1 +5V for DIN MIDI
-//     1 +3.3V/+5V for potentiometers
-//     1 GND for DIN MIDI and potentiometers
+// Requires Teensy 3.6 or other Arduino compatible micro-controller with sufficient I/O
+// I/O Pin requirments:
+//      38  pins in total
+//          31 digital
+//          4 analog
+//          2 I2C
+//          1 serial TX
+// Additional pin requirements:
+//      1 +5V for DIN MIDI
+//      1 +3.3V/+5V for potentiometers
+//      1 GND for DIN MIDI and potentiometers
 //
-// 231 x digital buttons in total (21 columns * 11 rows)
-//   4 x potentiometers
-//   2 x 1/4" TS jacks
-//   1 x 5 pin DIN MIDI serial jack
+// Deck 1:
+// 85 x note buttons (scanning matrix of 10 columns * 9 rows = 90 with 5 unused nodes)
+// 10 x control buttons (shares matrix with 10 columns * 1 row)
+//  4 x potentiometers
+//  1 x 1/4" TS jack
+//  1 x 5 pin DIN MIDI serial jack
+//  1 x 16x2 character I2C LCD screen
+//
+// Deck 2:
+// 104 x note buttons (scanning matrix of 10 columns * 11 rows = 110 with 6 unused nodes)
+//
 //
 // Device pinout:
-// (Both decks are wired identically; rotate right deck 180 deg to position)
-// Name                  DB25 Male (Decks)     DB25 Female Left (Control)  DB25 Female Right (Control)     Teensy 3.6 Pin
-// ----------------------------------------------------------------------------------------------------------------------
-// Matrix Col 0          24                    24                          N/A                             2
-// Matrix Col 1          23                    23                          N/A                             3
-// Matrix Col 2          22                    22                          N/A                             4
-// Matrix Col 3          21                    21                          N/A                             5
-// Matrix Col 4          20                    20                          N/A                             6
-// Matrix Col 5          19                    19                          N/A                             7
-// Matrix Col 6          18                    18                          N/A                             8
-// Matrix Col 7          17                    17                          N/A                             9
-// Matrix Col 8          16                    16                          N/A                             10
-// Matrix Col 9          15                    15                          N/A                             11
+// Name                 Teensy 3.6 Pin
+// ------------------------------------
+// Deck 1 Col 0           2
+// Deck 1 Col 1           3
+// Deck 1 Col 2           4
+// Deck 1 Col 3           5
+// Deck 1 Col 4           6
+// Deck 1 Col 5           7
+// Deck 1 Col 6           8
+// Deck 1 Col 7           9
+// Deck 1 Col 8          10
+// Deck 1 Col 9          11
 // --
-// Matrix Col 10         N/A                   N/A                         N/A                             38
+// Deck 2 Col 0          36
+// Deck 2 Col 1          37
+// Deck 2 Col 2          38
+// Deck 2 Col 3          14
+// Deck 2 Col 4          15
+// Deck 2 Col 5          16
+// Deck 2 Col 6          17
+// Deck 2 Col 7          20
+// Deck 2 Col 8          21
+// Deck 2 Col 9          22
 // --
-// Matrix Col 11 (9)     15                    N/A                         15                              12
-// Matrix Col 12 (8)     16                    N/A                         16                              24
-// Matrix Col 13 (7)     17                    N/A                         17                              25
-// Matrix Col 14 (6)     18                    N/A                         18                              26
-// Matrix Col 15 (5)     19                    N/A                         19                              27
-// Matrix Col 16 (4)     20                    N/A                         20                              28
-// Matrix Col 17 (3)     21                    N/A                         21                              29
-// Matrix Col 18 (2)     22                    N/A                         22                              30
-// Matrix Col 19 (1)     23                    N/A                         23                              31
-// Matrix Col 20 (0)     24                    N/A                         24                              32
+// Decks 1 & 2 Row 0          32
+// Decks 1 & 2 Row 1          31
+// Decks 1 & 2 Row 2          30
+// Decks 1 & 2 Row 3          29
+// Decks 1 & 2 Row 4          28
+// Decks 1 & 2 Row 5          27
+// Decks 1 & 2 Row 6          26
+// Decks 1 & 2 Row 7          25
+// Decks 1 & 2 Row 8          24
+// Decks 1 & 2 Row 9          12
+// Deck 2 Row 10              35
 // --
-// Matrix Row 0          12                    12                          2                               39
-// Matrix Row 1          11                    11                          3                               14
-// Matrix Row 2          10                    10                          4                               15
-// Matrix Row 3          9                     9                           5                               16
-// Matrix Row 4          8                     8                           6                               17
-// Matrix Row 5          7                     7                           7                               18
-// Matrix Row 6          6                     6                           8                               19
-// Matrix Row 7          5                     5                           9                               20
-// Matrix Row 8          4                     4                           10                              21
-// Matrix Row 9          3                     3                           11                              22
-// Matrix Row 10         2                     2                           12                              23
+// Pot Left/Left         A22
+// Pot Left/Middle       A21
+// Pot Right/Middle      A15
+// Pot Right/Right       A14
 // --
-// Pot UL                                                                                                  A14
-// Pot UR                                                                                                  A15
-// Pot LL                                                                                                  A16
-// Pot LR                                                                                                  A17
+// DIN MIDI TX            1
 // --
-// DIN MIDI TX           N/A                   N/A                         N/A                             1
-// 
-// Button number locations in the decks and control panel (square brackets indicate unused locations):
-//                                              Controls
-//                                               ------
-//                   Left Deck                  | 0  1 |                    Right Deck
-//  ------------------------------------------------------------------------------------------------
-// |   0   1   2   3   4   5   6   7   8 [  9]  |      |  [  0]   1   2   3   4   5   6   7   8   9 |
-// |  10  11  12  13  14  15  16  17  18   19   |      |    10   11  12  13  14  15  16  17  18  19 |
-// |  20  21  22  23  24  25  26  27  28 [ 29]  |   2  |  [ 20]  21  22  23  24  25  26  27  28  29 |
-// |  30  31  32  33  34  35  36  37  38   39   |   3  |    30   31  32  33  34  35  36  37  38  39 |
-// |  40  41  42  43  44  45  46  47  48 [ 49]  |   4  |  [ 40]  41  42  43  44  45  46  47  48  49 |
-// |  50  51  52  53  54  55  56  57  58   59   |   5  |    50   51  52  53  54  55  56  57  58  59 |
-// |  60  61  62  63  64  65  66  67  68 [ 69]  |   6  |  [ 60]  61  62  63  64  65  66  67  68  69 |
-// |  70  71  72  73  74  75  76  77  78   79   |   7  |    70   71  72  73  74  75  76  77  78  79 |
-// |  80  81  82  83  84  85  86  87  88 [ 89]  | [ 8] |  [ 80]  81  82  83  84  85  86  87  88  89 |
-// |  90  91  92  93  94  95  96  97  98   99   | [ 9] |    90   91  92  93  94  95  96  97  98  99 |
-// | 100 101 102 103 104 105 106 107 108 [109]  | [10] |  [100] 101 102 103 104 105 106 107 108 109 |
-//  ------------------------------------------------------------------------------------------------
+// I2C Clock (SCL)       A4
+// I2C Data (SDA)        A5
+//
+// Button matrix locations in the deck and control panel matrix (square brackets indicate unused locations):
+// Deck 1:
+//  -------------- Control Panel ----------------
+// |   0       2       4       6       8         |
+// |       1       3       5       7       9     |
+//  ------------------ Deck ---------------------
+// |    10  11  12  13  14  15  16  17  18  [19] |
+// |  20  21  22  23  24  25  26  27  28  29     |
+// |    30  31  32  33  34  35  36  37  38  [39] |
+// |  40  41  42  43  44  45  46  47  48  49     |
+// |    50  51  52  53  54  55  56  57  58  [59] |
+// |  60  61  62  63  64  65  66  67  68  69     |
+// |    70  71  72  73  74  75  76  77  78  [79] |
+// |  80  81  82  83  84  85  86  87  88  89     |
+// |    90  91  92  93  94  95  96  97  98  [99] |
+//  ---------------------------------------------
+//
+// Deck 2:
+//  -------------- ---------------------------
+// | [0] 1   2   3   4   5  6   7   8   9     |
+// |   10  11  12  13  14  15  16  17  18  19 |
+// |[20] 21  22  23  24  25  26  27  28  29   |
+// |   30  31  32  33  34  35  36  37  38  39 |
+// |[40[ 41  42  43  44  45  46  47  48  49   |
+// |   50  51  52  53  54  55  56  57  58  59 |
+// |[60] 61  62  63  64  65  66  67  68  69   |
+// |   70  71  72  73  74  75  76  77  78  79 |
+// |[80] 81  82  83  84  85  86  87  88  89   |
+// |   90  91  92  93  94  95  96  97  98  99 |
+// |[100]101 102 103 104 105 106 107 108 109  |
+//  ------------------------------------------
+//
 // Control Panel Knobs:
-// Input                                                   Input
-// ------------------------------------------------------------------------------------------------
-// Upper Left:     Left Deck Main Velocity                 Upper Right:    Right Deck Main Velocity
-// Lower Left:     Metronome/Layer Velocity                Lower Right:    Metronome Speed
+// Left/Left: Effect 1 (MIDI CC 12)     Left/Middle: Effect 2 (MIDI CC 13)      Right/Middle: Modulation Button Level (MIDI CC 1)       Right/Right: Note Velocity
 //
 // Control Panel Buttons:
-// Input            Normal Function     Meta A              Meta B                      Meta A+B
-// ---------------------------------------------------------------------------------------------------------------------------
-// Control Up:      Pitch Bend Up       Main Oct Up         Drums Mode Toggle           Pitch Bend Whole Step/Half Step Toggle
-// Control Middle:  Apply Modulation    Chorus Toggle       Reverb Toggle               Controller Reset
-// Control Down:    Pitch Bend Down     Main Oct Down       Legato/Drone Mode Toggle    Pitch Bend Fast/Slow Toggle
-// Loop Button:     Looper              N/A                 N/A                         N/A
+// ----------------------
+// Normal Functions
+// Pitch Bend Down              Modulation On               Pitch Bend Up       MIDI Channel Up         Octave Up
+// Record Parent Loop (Toggle)  Record Overdub++ (Hold)     [Meta Key]          MIDI Channel Down       Octave Down
+// --
+// Meta Key Functions
+// Drums Mode                   Reverb Toggle               Drone Mode          Program Up   +10        Program Up   +1
+// N/A                          Stop/Retart Playback        [Meta Key]          Program Down -10        Program Down -1
 //
-// Foot Switches:
-// Input                                                    Input
-// --------------------------------------------------------------------------------------------
-// Expression Pedal (left side/0): Expression (MIDI CC #11) Looper Pedal (right side/1): Looper
+// Foot Switch (Hold):
+// Ham fisted attempt at dynamics, velocity changes between current pot setting (switch is off), or maximum (127) values (switch is on)
 //
-// Note Buttons:
-// Input           Left Deck                                                           Right Deck
-// ---------------------------------------------------------------------------------------------------------------------------------------------------
-// Meta A          Left Deck Program Select 0-103                                      Right Deck Program Select 0-103
-// Meta B          Left Deck Layer Program Select 0-103                                Right Deck Layer Program Select 0-103
-// Meta A+B        Main Prg Select 104-127 | Layer Mute | Layer Prg Select 104-127     Main Prg Select 104-127 | Layer Mute | Layer Prg Select 104-127
-// 
-// MIDI Channel Assignments:
-// Left Deck:                  MIDI CH 0
-// Right Deck:                 MIDI CH 1
-// Left Deck Layer:            MIDI CH 2
-// Right Deck Layer:           MIDI CH 3
-// Looper:                     MIDI CH 4
-// Looper:                     MIDI CH 5
-// Looper:                     MIDI CH 6
-// Looper:                     MIDI CH 7
-// Looper:                     MIDI CH 8
-// Drums/Looper:               MIDI CH 9
-// Looper:                     MIDI CH 10
-// Looper:                     MIDI CH 11
-// Looper:                     MIDI CH 12
-// Looper:                     MIDI CH 13
-// Looper:                     MIDI CH 14
-// Looper:                     MIDI CH 15
-
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
 // START OF PROGRAM
 
-#include "MIDIUSB.h"
+// Define Teensy 3.x hardware restart variables for use in the controllerReset() function
+#define RESTART_ADDR 0xE000ED0C
+#define READ_RESTART() (*(volatile uint32_t *)RESTART_ADDR)
+#define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
+
+// Include required libraries
+#include "MIDIUSB.h"                                                    // MIDIUSB v1.0.4 by Gary Grewal
+#include "Wire.h"                                                       // Wire - Included with Arduino IDE
+#include "LiquidCrystal_I2C.h"                                          // LiquidCrystal I2C v1.1.2 by Frank de Brabander
 
 // Define digital button matrix pins
-const byte leftDeckColumns[]        = { 2,  3,  4,  5,  6,  7,  8,  9, 10, 11};         // Left deck column pins in order from left to right
-const byte rightDeckColumns[]       = {12, 24, 25, 26, 27, 28, 29, 30, 31, 32};         // Right deck column pins in order from left to right
-const byte controlDeckColumns[]     = {38};                                             // Control deck column
-const byte buttonDeckRows[]         = {39, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};     // Shared button deck rows in order from top to bottom
-const byte controlDeckRows[]        = {39, 14, 15, 16, 17, 18, 19, 20};                 // Control deck rows in order from top to bottom
-const byte leftDeckColumnCount      = sizeof(leftDeckColumns);                          // The number of left deck columns in the matrix
-const byte rightDeckColumnCount     = sizeof(rightDeckColumns);                         // The number of right deck columns in the matrix
-const byte controlDeckColumnCount   = sizeof(controlDeckColumns);                       // The number of control deck columns in the matrix
-const byte buttonDeckRowCount       = sizeof(buttonDeckRows);                           // The number of shared button deck rows in the matrix
-const byte controlDeckRowCount      = sizeof(controlDeckRows);                          // The number of control deck rows in the matrix
-const byte leftDeckElementCount     = leftDeckColumnCount * buttonDeckRowCount;         // The number of elements in the left deck matrix
-const byte rightDeckElementCount    = rightDeckColumnCount * buttonDeckRowCount;        // The number of elements in the right deck matrix
-const byte controlDeckElementCount  = controlDeckColumnCount * controlDeckRowCount;     // The number of elements in the control deck matrix
+const byte deck1Columns[]        = { 2,  3,  4,  5,  6,  7,  8,  9, 10, 11}; // Column pins in order from left to right
+const byte deck1Rows[]           = {32, 31, 30, 29, 28, 27, 26, 25, 24, 12}; // Row pins in order from top to bottom
+const byte deck1ColumnCount      = sizeof(deck1Columns);                          // The number of columns in the matrix
+const byte deck1RowCount         = sizeof(deck1Rows);                             // The number of rows in the matrix
+const byte deck1ElementCount     = deck1ColumnCount * deck1RowCount;                   // The number of elements in the matrix
 
-// Define analog input pins
-const byte ULPotPin = A14;
-const byte URPotPin = A15;
-const byte LLPotPin = A16;
-const byte LRPotPin = A17;
+const byte deck2Columns[]        = {36, 37, 38, 14, 15, 16, 17, 20, 21, 22}; // Column pins in order from left to right
+const byte deck2Rows[]           = {32, 31, 30, 29, 28, 27, 26, 25, 24, 12, 35}; // Row pins in order from top to bottom
+const byte deck2ColumnCount      = sizeof(deck2Columns);                          // The number of columns in the matrix
+const byte deck2RowCount         = sizeof(deck2Rows);                             // The number of rows in the matrix
+const byte deck2ElementCount     = deck2ColumnCount * deck2RowCount;                   // The number of elements in the matrix
 
-// MIDI note value tables for the Wicki-Hayden (default) deck layouts, and the drums layout
-const byte leftDeckWickiHayden[leftDeckElementCount] = {
-   78,  80,  82,  84,  86,  88,  90,  92,  94,   0,
-71,  73,  75,  77,  79,  81,  83,  85,  87,  89,
-   66,  68,  70,  72,  74,  76,  78,  80,  82,   0,
+const byte velocityPedalPin = 39;                                       // Digital foot pedal pin
+
+// Define analog potentiometer pins
+const byte LLPotPin = A22;                                              // Left/Left Pot
+const byte LMPotPin = A21;                                              // Left/Middle Pot
+const byte RMPotPin = A15;                                              // Right/Middle Pot
+const byte RRPotPin = A14;                                              // Right/Right Pot
+
+// MIDI note value tables
+const byte deck1WickiHaydenLayout[deck1ElementCount] = {
+00,00,00,00,00,00,00,00,00,00,                                          // '00' indicates unused node
+   66,  68,  70,  72,  74,  76,  78,  80,  82,  00,
 59,  61,  63,  65,  67,  69,  71,  73,  75,  77,
-   54,  56,  58,  60,  62,  64,  66,  68,  70,   0,
+   54,  56,  58,  60,  62,  64,  66,  68,  70,  00,
 47,  49,  51,  53,  55,  57,  59,  61,  63,  65,
-   42,  44,  46,  48,  50,  52,  54,  56,  58,   0,
+   42,  44,  46,  48,  50,  52,  54,  56,  58,  00,
 35,  37,  39,  41,  43,  45,  47,  49,  51,  53,
-   30,  32,  34,  36,  38,  40,  42,  44,  46,   0,
+   30,  32,  34,  36,  38,  40,  42,  44,  46,  00,
 23,  25,  27,  29,  31,  33,  35,  37,  39,  41,
-   18,  20,  22,  24,  26,  28,  30,  32,  34,   0
-};
-const byte rightDeckWickiHayden[rightDeckElementCount] = {
- 0,  90,  92,  94,  96,  98, 100, 102, 104, 106,
-   83,  85,  87,  89,  91,  93,  95,  97,  99, 101,
- 0,  78,  80,  82,  84,  86,  88,  90,  92,  94,
-   71,  73,  75,  77,  79,  81,  83,  85,  87,  89,
- 0,  66,  68,  70,  72,  74,  76,  78,  80,  82,
-   59,  61,  63,  65,  67,  69,  71,  73,  75,  77,
- 0,  54,  56,  58,  60,  62,  64,  66,  68,  70,
-   47,  49,  51,  53,  55,  57,  59,  61,  63,  65,
- 0,  42,  44,  46,  48,  50,  52,  54,  56,  58,
-   35,  37,  39,  41,  43,  45,  47,  49,  51,  53,
- 0,  30,  32,  34,  36,  38,  40,  42,  44,  46
-};
-const byte leftDeckDrums[leftDeckElementCount] = {
-   00,  00,  00,  00,  00,  00,  00,  00,  00,   0,
-00,  00,  00,  00,  00,  00,  00,  00,  00,  00,
-   00,  00,  00,  00,  28,  00,  00,  00,  00,   0,
-00,  25,  26,  29,  30,  86,  87,  78,  79,  00,
-   73,  74,  75,  82,  27,  83,  84,  71,  72,   0,
-00,  77,  76,  62,  64,  63,  85,  68,  67,  00,
-   66,  65,  41,  47,  48,  50,  57,  80,  81,   0,
-00,  61,  60,  43,  45,  48,  49,  52,  69,  00,
-   70,  58,  42,  46,  46,  42,  51,  59,  54,   0,
-25,  39,  40,  37,  38,  38,  37,  40,  31,  25,
-   44,  35,  55,  36,  35,  36,  53,  35,  56,   0
-};
+   18,  20,  22,  24,  26,  28,  30,  32,  34,  00
 
-// MIDI program selection value tables
-const byte leftDeckMidiProgramsA[leftDeckElementCount] = {
-    0,   1,   2,   3,   4,   5,   6,   7,   8, 000,
-  9,  10,  11,  12,  13,  14,  15,  16,  17,  18,
-   19,  20,  21,  22,  23,  24,  25,  26,  27, 000,
- 28,  29,  30,  31,  32,  33,  34,  35,  36,  37,
-   38,  39,  40,  41,  42,  43,  44,  45,  46, 000,
- 47,  48,  49,  50,  51,  52,  53,  54,  55,  56,
-   57,  58,  59,  60,  61,  62,  63,  64,  65, 000,
- 66,  67,  68,  69,  70,  71,  72,  73,  74,  75,
-   76,  77,  78,  79,  80,  81,  82,  83,  84, 000,
- 85,  86,  87,  88,  89,  90,  91,  92,  93,  94,
-   95,  96,  97,  98,  99, 100, 101, 102, 103, 000
 };
-const byte leftDeckMidiProgramsB[leftDeckElementCount] = {
-  104, 105, 106, 107, 108, 109, 110, 111, 112, 000,
-113, 114, 115, 116, 117, 118, 119, 120, 121, 121,
-  123, 124, 125, 126, 127, 000, 000, 000, 000, 000,
-000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-  000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-  000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-  104, 105, 106, 107, 108, 109, 110, 111, 112, 000,
-113, 114, 115, 116, 117, 118, 119, 120, 121, 121,
-  123, 124, 125, 126, 127, 000, 000, 000, 000, 000
+const byte deck2WickiHaydenLayout[deck2ElementCount] = {
+00,    90,  92,  94,  96,  98, 100, 102, 104, 106,
+    83,  85,  87,  89,  91,  93,  95,  97,  99, 101,                     // '00' indicates unused node
+00,    78,  80,  82,  84,  86,  88,  90,  92,  94,
+    71,  73,  75,  77,  79,  81,  83,  85,  87,  89,
+00,    66,  68,  70,  72,  74,  76,  78,  80,  82,
+    59,  61,  63,  65,  67,  69,  71,  73,  75,  77,
+00,    54,  56,  58,  60,  62,  64,  66,  68,  70,
+    47,  49,  51,  53,  55,  57,  59,  61,  63,  65,
+00,    42,  44,  46,  48,  50,  52,  54,  56,  58,
+    35,  37,  39,  41,  43,  45,  47,  49,  51,  53,
+00,    30,  32,  34,  36,  38,  40,  42,  44,  46
 };
-const byte rightDeckMidiProgramsA[rightDeckElementCount] = {
-000,   0,   1,   2,   3,   4,   5,   6,   7,   8,
-    9,  10,  11,  12,  13,  14,  15,  16,  17,  18,
-000,  19,  20,  21,  22,  23,  24,  25,  26,  27,
-   28,  29,  30,  31,  32,  33,  34,  35,  36,  37,
-000,  38,  39,  40,  41,  42,  43,  44,  45,  46,
-   47,  48,  49,  50,  51,  52,  53,  54,  55,  56,
-000,  57,  58,  59,  60,  61,  62,  63,  64,  65,
-   66,  67,  68,  69,  70,  71,  72,  73,  74,  75,
-000,  76,  77,  78,  79,  80,  81,  82,  83,  84,
-   85,  86,  87,  88,  89,  90,  91,  92,  93,  94,
-000,  95,  96,  97,  98,  99, 100, 101, 102, 103
-};
-const byte rightDeckMidiProgramsB[rightDeckElementCount] = {
-000, 104, 105, 106, 107, 108, 109, 110, 111, 112,
-  113, 114, 115, 116, 117, 118, 119, 120, 121, 121,
-000, 123, 124, 125, 126, 127, 000, 000, 000, 000,
-  000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-  000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-  000, 000, 000, 000, 000, 000, 000, 000, 000, 000,
-000, 104, 105, 106, 107, 108, 109, 110, 111, 112,
-  113, 114, 115, 116, 117, 118, 119, 120, 121, 121,
-000, 123, 124, 125, 126, 127, 000, 000, 000, 000
+const byte drumLayout[deck1ElementCount] = {
+00,  00,  00,  00,  00,  00,  00,  00,  00,     00,                     // '00' indicates unused node
+   00,  00,  00,  00,  28,  00,  00,  00,  00,  00,
+00,  25,  26,  29,  30,  86,  87,  78,  79,  00,
+   73,  74,  75,  82,  27,  83,  84,  71,  72,  00,
+00,  77,  76,  62,  64,  63,  85,  68,  67,  00,
+   66,  65,  41,  47,  48,  50,  57,  80,  81,  00,
+00,  61,  60,  43,  45,  48,  49,  52,  69,  00,
+   70,  58,  42,  46,  46,  42,  51,  59,  54,  00,
+25,  39,  40,  37,  38,  38,  37,  40,  31,  25,
+   44,  35,  55,  36,  35,  36,  53,  35,  56,  00
 };
 
 // Global time variables
-unsigned long   currentTime;                                            // Time in milliseconds since power on
-const byte      debounceTime = 50;                                      // Global debounce time in milliseconds
+unsigned long   currentTime;                                            // Program loop consistent variable for time in milliseconds since power on
+const byte      debounceTime = 80;                                      // Global digital button debounce time in milliseconds
 
-// Variables for holding digital button states and debounce times
-byte            activeButtonsLeft[leftDeckElementCount];                // Array to hold current button states (1/0) in the left deck
-byte            previousActiveButtonsLeft[leftDeckElementCount];        // Array to hold previous button states (1/0) in the left deck for comparison
-unsigned long   activeButtonsLeftTime[leftDeckElementCount];            // Array to track last activation time for debounce
-byte            activeButtonsRight[rightDeckElementCount];              // Array to hold current button states (1/0) in the right deck
-byte            previousActiveButtonsRight[rightDeckElementCount];      // Array to hold previous button states (1/0) in the right deck for comparison
-unsigned long   activeButtonsRightTime[rightDeckElementCount];          // Array to track last activation time for debounce
-byte            activeButtonsControl[controlDeckElementCount];          // Array to hold current button states (1/0) in the control deck
-byte            previousActiveButtonsControl[controlDeckElementCount];  // Array to hold previous button states (1/0) in the control deck for comparison
-unsigned long   activeButtonsControlTime[controlDeckElementCount];      // Array to track last activation time for debounce
+// Variables for holding digital button states and activation times
+byte            deck1ActiveButtons[deck1ElementCount];                            // Array to hold current note button states
+byte            deck1PreviousActiveButtons[deck1ElementCount];                    // Array to hold previous note button states for comparison
+unsigned long   deck1ActiveButtonsTime[deck1ElementCount];                        // Array to track last note button activation time for debounce
+
+byte            deck2ActiveButtons[deck2ElementCount];                            // Array to hold current note button states
+byte            deck2PreviousActiveButtons[deck2ElementCount];                    // Array to hold previous note button states for comparison
+unsigned long   deck2ActiveButtonsTime[deck2ElementCount];                        // Array to track last note button activation time for debounce
 
 // Control button states
-byte expressionPedalState;                                              // Expression pedal - 1/4" TS jack left side
-byte loopPedalState;                                                    // Loop pedal - 1/4" TS jack right side - mirrors loop button function
-byte controlUpState;                                                    // Top control button (white)
-byte controlMiddleState;                                                // Middle control button (black)
-byte controlDownState;                                                  // Bottom control button (white)
-byte metaAState;                                                        // Top meta key (red)
-byte metaBState;                                                        // Bottom meta key (red)
-byte loopButtonState;                                                   // Loop button (white) - mirrors loop pedal function
-byte previousExpressionPedalState;                                      // Input locking variable
-byte previousControlUpState;                                            // Input locking variable
-byte previousControlMiddleState;                                        // Input locking variable
-byte previousControlDownState;                                          // Input locking variable
-byte previousMetaAState;                                                // Input locking variable
-byte previousMetaBState;                                                // Input locking variable
+byte velocityPedalState;                                                // Velocity pedal - 1/4" TS jack
+byte pitchDownState;                                                    // Top row (white) left
+byte modulationState;                                                   // Top row (green) left/center
+byte pitchUpState;                                                      // Top row (white) center
+byte channelUpState;                                                    // Top row (green) right/center
+byte octaveUpState;                                                     // Top row (white) right
+byte loopRecordState;                                                   // Bottom row (red)   left
+byte loopOverdubState;                                                  // Bottom row (blue)  left/center
+byte metaKeyState;                                                      // Bottom row (black) center
+byte channelDownState;                                                  // Bottom row (green) right/center
+byte octaveDownState;                                                   // Bottom row (white) right
+byte previousVelocityPedalState;                                        // Comparison variable for input locking
+byte previousPitchDownState;                                            // Comparison variable for input locking
+byte previousModulationState;                                           // Comparison variable for input locking
+byte previousPitchUpState;                                              // Comparison variable for input locking
+byte previousChannelUpState;                                            // Comparison variable for input locking
+byte previousOctaveUpState;                                             // Comparison variable for input locking
+byte previousLoopRecordState;                                           // Comparison variable for input locking
+byte previousLoopOverdubState;                                          // Comparison variable for input locking
+byte previousChannelDownState;                                          // Comparison variable for input locking
+byte previousOctaveDownState;                                           // Comparison variable for input locking
 
-// Analog knob values
-const byte analogDeadzone = 5;                                          // The amount an analog reading needs to change before the variable is updated
-const byte analogReadings = 24;                                         // The number of iterations to keep a running average for smoothing analog inputs
-byte analogIndex;                                                       // Array index position for tracking averages
-int  ULPotAverage;                                                      // The average value of the Upper Left pot
-int  previousULPotAverage;                                              // The previous average value of the pot for deadzone comparison
-int  ULPotReadings[analogReadings];                                     // Array of previous readings that will be FIFO cycled each loop
-word ULPotTotal;                                                        // Total value of all readings that will be divided by number of readings to find the average
-int  URPotAverage;                                                      // The average value of the Upper Right pot
-int  previousURPotAverage;                                              // The previous average value of the pot for deadzone comparison
-int  URPotReadings[analogReadings];                                     // Array of previous readings that will be FIFO cycled each loop
-word URPotTotal;                                                        // Total value of all readings that will be divided by number of readings to find the average
-int  LLPotAverage;                                                      // The average value of the Lower Left pot
-int  previousLLPotAverage;                                              // The previous average value of the pot for deadzone comparison
-int  LLPotReadings[analogReadings];                                     // Array of previous readings that will be FIFO cycled each loop
-word LLPotTotal;                                                        // Total value of all readings that will be divided by number of readings to find the average
-int  LRPotAverage;                                                      // The average value of the Lower Right pot
-int  previousLRPotAverage;                                              // The previous average value of the pot for deadzone comparison
-int  LRPotReadings[analogReadings];                                     // Array of previous readings that will be FIFO cycled each loop
-word LRPotTotal;                                                        // Total value of all readings that will be divided by number of readings to find the average
 
-// MIDI channel assignments
-// Channels 4-15 (including drums channel 9) are used by the looper function
-      byte leftDeckMidiChannel          = 0;                            // Toggle between 0 (default) and 9 (MIDI percussion channel)
-const byte leftDeckDefaultMidiChannel   = 0;
-const byte rightDeckMidiChannel         = 1;
-const byte leftDeckLayerMidiChannel     = 2;
-const byte rightDeckLayerMidiChannel    = 3;
-const byte drumsChannel                 = 9;                            // MIDI percussion channel
+byte loopRecordTrigger;                                                 // Secondary state tracking to engage looper on button press, and disengage on subsequent press
+byte previousLoopRecordTrigger;                                         // Previous state variable for comparison
+byte loopOverdubTrigger;                                                // Secondary state tracking to blip overdub button if held through a looper rollover
+
+// Variables for rate limiting analog MIDI CC updates to prevent buffer overruns (needed for iOS MIDI)
+const byte      analogDelayTime = 25;                                   // Global analog update time (milliseconds)
+const byte      analogDeadzone = 2;                                     // The amount an analog reading needs to change before the variable is updated
+
+// Analog input variables
+int             LLPotValue;                                             // The value of the Left/Left pot
+int             LMPotValue;                                             // The value of the Left/Middle pot
+byte            RMPotValue;                                             // The value of the Right/Middle pot (mapped to 7-bits)
+byte            RRPotValue;                                             // The value of the Right/Right pot (mapped to 7-bits)
+int             previousLLPotValue;                                     // The previous value of the Left/Left pot for comparison
+int             previousLMPotValue;                                     // The previous value of the Left/Middle pot for comparison
+byte            previousRMPotValue;                                     // The previous value of the Right/Middle pot for comparison
+byte            previousRRPotValue;                                     // The previous value of the Right/Right pot for comparison
+unsigned long   previousLLPotTime;                                      // The last activation time for rate limiting
+unsigned long   previousLMPotTime;                                      // The last activation time for rate limiting
+unsigned long   previousRMPotTime;                                      // The last activation time for rate limiting
+unsigned long   previousRRPotTime;                                      // The last activation time for rate limiting
+
+
+// Metronome variables
+unsigned int    metronomeSpeed = 0;;
+unsigned int    metronomeMin = 1500;        // Delay in ms between beats - 1500 = 40bpm
+unsigned int    metronomeMax = 200;         // Delay in ms between beats - 200 = 300bpm
+unsigned long   previousMetronomeTime = 0;;
+
+// MIDI channel assignment
+byte midiChannel = 0;                                                   // Current MIDI channel (changed via user input)
 
 // MIDI program variables
-byte midiProgram[16];                                                   // Save program selection per channel (0-15)
-byte leftDeckActive;                                                    // Track the whole button deck activation state on a program loop for quick comparison purposes
-byte rightDeckActive;                                                   // Track the whole button deck activation state on a program loop for quick comparison purposes
+byte midiProgram[16];                                                   // MIDI program selection per channel (0-15)
 
 // Octave modifier
-int octave;                                                             // MIDI note number offset; adjustable up or down by user in steps of 12
+int octave;                                                             // Apply a MIDI note number offset (changed via user input in steps of 12)
 
 // MIDI CC related variables
-byte chorusState;                                                       // Toggle for enabling/disabling chorus effect (MIDI CC #93)
-byte reverbState;                                                       // Toggle for enabling/disabling reverb effect (MIDI CC #91)
+byte reverbState[16];                                                   // Toggle for enabling/disabling reverb effect per channel (MIDI CC #91)
 
 // Velocity levels
-byte leftDeckVelocity   = 95;                                           // Default velocity for testing purposes; this will update immediately via analog pot
-byte rightDeckVelocity  = 95;                                           // Default velocity for testing purposes; this will update immediately via analog pot
-byte multiVelocity      = 95;                                           // Default velocity for the metronome and the layer channels; this will update immediately via analog pot
-
-// Metronome
-word metronomeSpeed;                                                    // The length of time in milliseconds between metronome clicks; updates immediately via analog pot
-unsigned long previousMetronomeClickTime;                               // Previous click time for comparison
+byte velocity = 95;                                                     // Non-zero default velocity for testing; this will update via analog pot
 
 // Pitch Bend
-int pitchOffset     = 0;                                                // Offset amount for pitch bending.  pitchSpeed is added to this each loop up to a max value of 8191
-int pitchSpeed      = 500;                                              // The amount to increment pitchOffset each program loop (user can toggle between 500 "slow" and 1500 "fast")
-int pitchStep       = 8191;                                             // The maximum amount that pitchOffset is allowed reach (toggles between 8191 for whole-step and 4095 for half-step)
-int referencePitch  = 8192;                                             // Default neutral pitch position; could exploit this for global instrument tuning (i.e. reference pitch other than A=440Hz)
+int pitchOffset             = 0;                                        // Offset amount for pitch bending.  pitchSpeed is added to this each loop up to a max value of 8191
+const int pitchSpeed        = 512;                                      // The amount to increment pitchOffset each program loop (must cleanly divide 8192)
+const int pitchStep         = 8191;                                     // The maximum amount that pitchOffset is allowed reach (8191 for whole-step or 4095 for half-step)
+const int referencePitch    = 8192;                                     // Default neutral pitch position; can potentially exploit for global instrument tuning
 
-// Toggles for layered instrument, drums and drone/legato modes
-byte leftDeckLayerNotesEnabled;                                         // Toggle optional layered instrument channel on/off for the left deck
-byte rightDeckLayerNotesEnabled;                                        // Toggle optional layered instrument channel on/off for the right deck
-byte leftDeckDrumsModeEnabled;                                          // Toggle optional drums mode on/off for the left deck, and switch to a button layout to one more comfortable for finger drumming
-byte leftDeckLegatoModeEnabled;                                         // Toggle optional drone/legato mode on/off for the left deck (sustain enabled on every button press, and then blipped off and on for each subsequent press)
+// Toggles for drums and sustain modes
+byte drumsModeEnabled;                                                  // Toggle optional drums mode on/off, and switch to a note layout to one more comfortable for finger drumming
+byte sustainModeEnabled;                                                // Toggle optional sustain mode on/off (sustain enabled on note press, blipped off/on for each subsequent press)
 
-// Looper related variables
-byte loopActivationState;                                               // Loop activation state variable shared by both loop pedal and loop button
-byte previousLoopActivationState;                                       // Previous state variable for comparison
-const byte maxTracks = 12;                                              // The maximum number of tracks available to the looper
-const int maxIndexes = 2040;                                            // The maximum number of indexes allowed for each channel (limited by available RAM)
-const byte loopChannelAssignment[maxTracks] = {4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 9};   // The MIDI channel assignment dedicated to each looper track (0-12)
-unsigned long midiPacketIndex;                                          // A running counter of all MIDI packets sent to the bus
-unsigned long previousMidiPacketIndex;                                  // The previous packet counter index value for comparison
-byte loopRecordingEnabled;                                              // The recording state of the looper on/off
-byte loopPlaybackEnabled;                                               // The playback state of the looper on/off
-byte loopInMemory;                                                      // Flag indicating if a loop is recorded to memory or not
-byte loopDrumsInMemory;                                                 // Flag indicating if a drums loop is currently saved in memory or not (dedicated track 12)
-unsigned long loopStartTime;                                            // The global loop start time.  This number is subtracted from subsequent saved event times to record relative event times in the loop.  Resets to 0 on every playback loop.
-unsigned long loopDuration;                                             // The global loop duration.  When currentTime is equal to loopStartTime plus this number, the loopStartTime and indexes are reset to 0 for another playthrough.
-unsigned long loopResetClock = 4294967295;                              // When the loop button is held, this value is set to currentTime + 1500.  When currentTime equals this number, the looper is reset. Default is max value of an unsigned long (49.7 days of milliseconds).
-byte previousLoopResetState;                                            // Input locking variable for the loop reset button
-byte currentLoopIteration;                                              // Variable to store the currently recording loop iteration.  When this is incremented, a new loop is initialized (can be expanded in the future for loop overdubbing).
-byte previousLoopIteration;                                             // Previous loop iteration for comparison
-byte loopTrackActive[maxTracks];                                        // Flag indicating if this loop channel is in use
-int loopTrackIndex[maxTracks];                                          // The current index position of the arrays assigned to this loop track
-int loopTrackHighestIndex[maxTracks];                                   // The highest track index reached thus far in the current loop track.  Needed for overflow detection, and for limiting unnecessary array searches when scanning a full array.
-byte loopTrackEventType[maxTracks][maxIndexes];                         // Variable containing the event type of the packet saved to this looper track (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-byte loopTrackChannel[maxTracks][maxIndexes];                           // Variable containing the channel number of the packet saved to this looper track (0-15)
-byte loopTrackByte3[maxTracks][maxIndexes];                             // Variable containing the note number, control change number, or the pitch bend low byte of the packet saved to this looper track (0-127)
-byte loopTrackByte4[maxTracks][maxIndexes];                             // Variable containing the velocity value, control change value, or the pitch bend high byte of the packet saved to this looper track (0-127)
-unsigned long loopTrackEventTime[maxTracks][maxIndexes];                // Variable containing the event time of this index position in the looper track relative to the loopStartTime
-byte hangingNotes[maxTracks][maxIndexes];                               // Track noteOn vs. noteOff, to make sure we don't have any stragglers (the bane of my existence...)
-byte hangingNotesIndex[maxTracks];                                      // Hanging note index counter
-byte leftDeckInputTrack;                                                // Variable for holding the current track number taking input from the left deck (channel 0)
-byte rightDeckInputTrack;                                               // Variable for holding the current track number taking input from the right deck (channel 1)
-byte leftDeckLayerInputTrack;                                           // Variable for holding the current track number taking input from the left layer (channel 2)
-byte rightDeckLayerInputTrack;                                          // Variable for holding the current track number taking input from the right layer (channel 3)
-byte loopTrackOutputChannel[maxTracks];                                 // The output MIDI channel assigned to this looper track (4-15)
+// Looper variables
+const byte      loopMaxTracks = 16;                                     // Number of tracks available for recording (MIDI channels 0-15)
+const int       loopMaxIndexes = 2048;                                  // Number of indexes allowed per channel
+byte            loopRecordingEnabled;                                   // State variable to enable MIDI packet recording
+byte            loopPlaybackEnabled;                                    // State variable to enable playback once a loop is recorded
+byte            loopInMemory;                                           // State variable indicating (among other things) if arrays need to reinit on record button press
+byte            loopInputDetected;                                      // State variable indicating that a recordable input was pressed to kick off loop recording
+unsigned long   loopDuration;                                           // Parent loop duration
+unsigned long   loopStartTimestamp;                                     // Parent loop start timestamp
+int             loopRecordingIndex[loopMaxTracks];                      // Current index of recording per channel
+int             loopPlaybackIndex[loopMaxTracks];                       // Current index of playback per channel
+unsigned long   loopPacketEventTime[loopMaxTracks][loopMaxIndexes];     // Loop packet event time
+byte            loopPacketByte0[loopMaxTracks][loopMaxIndexes];         // Loop packet event type (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
+byte            loopPacketByte1[loopMaxTracks][loopMaxIndexes];         // Loop packet pitch/control/highByte
+byte            loopPacketByte2[loopMaxTracks][loopMaxIndexes];         // Loop packet velocity/value/lowByte
+byte            loopTrackActive[loopMaxTracks];                         // Loop track activation status to prevent overdub notes from feeding back into the hopper before loop completion
+byte            loopPercentage;                                         // Variable to track percentage of loop completion for printing to the LCD
+byte            previousLoopPercentage;                                 // Previous state variable to prevent unnecessary LCD updates
+byte            loopParentChannel = 255;                                // Loop track designated as parent (overdub tracks will utilize this track's duration)
+int             looperVelocity; 
+
+
+// LCD screen related variables
+LiquidCrystal_I2C lcd(0x27,16,2);                                                           // Set LCD I2C address to 0x27 and 16 char 2 line display
+byte upArrow[]            = { B00100,B01110,B11111,B00100,B00100,B00100,B00100,B00000 };    // Define an up arrow glyph in binary to send to the LCD
+byte downArrow[]          = { B00100,B00100,B00100,B00100,B11111,B01110,B00100,B00000 };    // Define a down arrow glyph in binary to send to the LCD
+byte recordLeft[]         = { B00011,B01111,B01100,B11001,B11001,B01100,B01111,B00011 };    // Define left side of recording glyph in binary to send to the LCD
+byte recordRight[]        = { B11000,B11110,B00110,B10011,B10011,B00110,B11110,B11000 };    // Define right side of recording glyph in binary to send to the LCD
+byte pauseLeft[]          = { B00110,B00110,B00110,B00110,B00110,B00110,B00110,B00000 };    // Define left side of pause glyph in binary to send to the LCD
+byte pauseRight[]         = { B01100,B01100,B01100,B01100,B01100,B01100,B01100,B00000 };    // Define right side of pause glyph in binary to send to the LCD
+byte loopLeft[]           = { B00000,B00000,B00010,B00100,B00010,B00000,B00000,B00000 };    // Define left side of loop track active glyph in binary to send to the LCD
+byte loopRight[]          = { B00000,B00000,B01000,B00100,B01000,B00000,B00000,B00000 };    // Define right side of loop track active glyph in binary to send to the LCD
+const char startupAnimation[]   = "KOOP Instruments  ";                                     // Text array for used for startup animation
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
 // START SETUP SECTION
 void setup()
 {
+    // Set up the LCD screen
+    lcd.init();                                                                     // Initialize the lcd
+    lcd.backlight();                                                                // Enable the backlight
+    lcd.createChar(0, upArrow);                                                     // Send glyph to LCD memory
+    lcd.createChar(1, downArrow);                                                   // Send glyph to LCD memory
+    lcd.createChar(2, recordLeft);                                                  // Send glyph to LCD memory
+    lcd.createChar(3, recordRight);                                                 // Send glyph to LCD memory
+    lcd.createChar(4, pauseLeft);                                                   // Send glyph to LCD memory
+    lcd.createChar(5, pauseRight);                                                  // Send glyph to LCD memory
+    lcd.createChar(6, loopLeft);                                                    // Send glyph to LCD memory
+    lcd.createChar(7, loopRight);                                                   // Send glyph to LCD memory
+
+
+    // LCD Startup Animation (Strobe letters left to right before revealing full text with added delay to mitigate slow LCD refresh)
+    for (int i = 0; i < 16; i = i + 1)
+    {
+    lcd.setCursor(i - 1,0);                                                         // Set cursor to prior column
+    lcd.print(" ");                                                                 // Blank this column
+    delay(10);                                                                      // Delay for effect
+    lcd.setCursor(i,0);                                                             // Set cursor to current column
+    lcd.print(startupAnimation[i]);                                                 // Print the current letter in the array
+    delay(10);                                                                      // Delay for effect
+    lcd.setCursor(i + 1,0);                                                         // Set cursor to the upcoming column
+    lcd.print(startupAnimation[i + 1]);                                             // Print the next letter in the array
+    delay(10);                                                                      // Delay for effect
+    lcd.setCursor(i + 2,0);                                                         // Set cursor to the upcoming column
+    lcd.print(startupAnimation[i + 2]);                                             // Print the next letter in the array
+    delay(10);                                                                      // Delay 20 milliseconds and loop incrementing 1 position
+    }
+    lcd.setCursor(0,0);                                                             // Set cursor to column 0 line 0
+    lcd.print("KOOP Instruments");                                                  // Print to LCD
+    lcd.setCursor(0,1);                                                             // Set cursor to column 0 line 1
+    lcd.print("Harmonicade v2.0");                                                  // Print to LCD
+    delay(1250);                                                                    // Delay to allow logo to be displayed
+    lcd.clear();                                                                    // Clear LCD
+    delay(250);                                                                     // Wait for screen to fade
+
+    // LCD Update Top Menu
+    lcd.setCursor(0,0); lcd.print("LP M R PRG CH OC");
+    // LCD Update Looper Disabled
+    lcd.setCursor(0,1); lcd.print("--");
+    // LCD Update Normal Mode Selected
+    lcd.setCursor(3,1); lcd.print("N");
+    // LCD Update Reverb Disabled
+    lcd.setCursor(5,1); lcd.print("0");
+    // LCD Update Default MIDI Program
+    lcd.setCursor(7,1); lcd.print("001");
+    // LCD Update Default MIDI Channel
+    lcd.setCursor(11,1); lcd.print("01");
+    // LCD Update Default Octave
+    lcd.setCursor(14,1); lcd.print(" 0");
+
     // Enable serial for the MIDI DIN connector
-    Serial1.begin(31250);                                                           // MIDI is 31250 baud
+    Serial1.begin(31250);                                                           // Serial MIDI 31250 baud
 
     // Set pinModes for the digital button matrix.
-    for (int pinNumber = 0; pinNumber < leftDeckColumnCount; pinNumber++)           // For each left deck column pin...
+    for (int pinNumber = 0; pinNumber < deck1ColumnCount; pinNumber++)                   // For each column pin...
     {
-        pinMode(leftDeckColumns[pinNumber], INPUT_PULLUP);                          // set the pinMode to INPUT_PULLUP (+3.3V / HIGH).
+        pinMode(deck1Columns[pinNumber], INPUT_PULLUP);                                  // set the pinMode to INPUT_PULLUP (+3.3V / HIGH).
     }
-    for (int pinNumber = 0; pinNumber < rightDeckColumnCount; pinNumber++)          // For each right deck column pin...
+    for (int pinNumber = 0; pinNumber < deck1RowCount; pinNumber++)                      // For each row pin...
     {
-        pinMode(rightDeckColumns[pinNumber], INPUT_PULLUP);                         // set the pinMode to INPUT_PULLUP (+3.3V / HIGH).
+        pinMode(deck1Rows[pinNumber], INPUT);                                            // Set the pinMode to INPUT (0V / LOW).
     }
-        for (int pinNumber = 0; pinNumber < controlDeckColumnCount; pinNumber++)    // For each control deck column pin...
-    {
-        pinMode(controlDeckColumns[pinNumber], INPUT_PULLUP);                       // set the pinMode to INPUT_PULLUP (+3.3V / HIGH).
-    }
-    for (int pinNumber = 0; pinNumber < buttonDeckRowCount; pinNumber++)            // For each row pin across all decks...
-    {
-        pinMode(buttonDeckRows[pinNumber], INPUT);                                  // Set the pinMode to INPUT (0V / LOW).
-    }
+    
+    pinMode(velocityPedalPin, INPUT_PULLUP);                                        // Foot pedal
 
     // Set pinModes for analog inputs.
-    pinMode(ULPotPin, INPUT);                                                       // Upper Left pot
-    pinMode(URPotPin, INPUT);                                                       // Upper Right pot
-    pinMode(LLPotPin, INPUT);                                                       // Lower Left pot
-    pinMode(LRPotPin, INPUT);                                                       // Lower Right pot
+    pinMode(LLPotPin, INPUT);                                                       // Left/Left pot
+    pinMode(LMPotPin, INPUT);                                                       // Left/Middle pot
+    pinMode(RMPotPin, INPUT);                                                       // Right/Middle pot
+    pinMode(RRPotPin, INPUT);                                                       // Right/Right pot
 
-    // Set expression level on all channels to 95 (default 127) to leave headroom for the expression pedal 
-    for (int midiChannel = 0; midiChannel < 16; midiChannel++)                      // For all MIDI channels (0-15)
-    {
-        controlChange(midiChannel, 11, 95);                                         // Set expression level (MIDI CC #11)
-    }
+
+    // Enable serial for monitor
+    // Serial.begin(115200);
+
 
 }
 // END SETUP SECTION
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
 // START LOOP SECTION
 void loop()
 {
-    // Print diagnostic troubleshooting information to serial monitor
-    // diagnosticTest();
-
-    // In the extremely unlikely event that the MIDI packet index counter ever reaches its maximum, reset it to 0.
-    if (midiPacketIndex >= 4294967295)
-    {
-        midiPacketIndex = 0;        // Index of MIDI packets intercepted by the looper before being sent to the bus
-    }
-
-    // Set the current time to a variable for this program loop
+    // Store the current time in a uniform variable for this program loop
     currentTime = millis();
-    // Read and store the digital button states of the scanning matrix
-    readDigitalButtons();
 
-    // Read, compute averages, and store the analog potentiometer values
+    // Read and store the digital button states of the scanning matrix
+    readDeck1DigitalButtons();
+    readDeck2DigitalButtons();
+
+    // Read and store the analog potentiometer values
     readAnalogKnobs();
 
-    // Set all states and values relating to the control deck's buttons and pots
+    // Set all states and values related to the control buttons and pots
     runControlModule();
+
+    // Run the metronome function
+    runMetronome();
 
     // Run the main and layer program select function
     runProgramSelect();
 
-    // Run MIDI control change related tasks (expression/modulation/chorus/reverb/sustain)
+    // Run MIDI control change related tasks (modulation/reverb)
     runMidiCC();
 
     // Run the pitch bend function
@@ -471,618 +461,410 @@ void loop()
     // Run the octave select function
     runOctave();
 
+    // Run the channel select function
+    runChannelSelect();
+
     // Run the drums mode function
     runDrumsMode();
 
-    // Run the legato/drone mode function
-    runLegatoMode();
+    // Run the sustain mode function
+    runSustainMode();
 
-    // Run the metronome function
-    runMetronome();
-
-    // Controller Reset (needs to come before any note sending functions)
+    // Controller Reset (*needs to come before any note sending functions)
     runControllerReset();
 
-    // Run the loop pedal function
-    runLoopPedal();
+    // Looper start detection (*needs to sit between readDigitalButtons() and playNotes() functions)
+    if (loopRecordState == HIGH && previousLoopRecordState == HIGH && loopInMemory == LOW && loopInputDetected == HIGH)
+    {
+        loopStartTimestamp = currentTime;
+        loopInMemory = HIGH;
+        // LCD Update Looper Recording
+        lcd.setCursor(0,1); lcd.write(2);lcd.write(3);
+    }
 
     // Send notes to the MIDI bus
     playNotes();
 
+    // Run the loop pedal function
+    runLooper();
+
+
+
+    // Print diagnostic troubleshooting information to serial monitor
+    // diagnosticTest();
+
+
+
     // Reset input locking variables for next loop where appropriate
-    if (loopActivationState == LOW) { previousLoopActivationState   = LOW;  previousLoopResetState = LOW; }
+    loopInputDetected = LOW;    // Reset the state variable indicating that a recordable input was pressed to kick off loop recording
+    if (velocityPedalState   == LOW) { previousVelocityPedalState   = LOW; }
+    if (pitchDownState       == LOW) { previousPitchDownState       = LOW; }
+    if (modulationState      == LOW) { previousModulationState      = LOW; }
+    if (pitchUpState         == LOW) { previousPitchUpState         = LOW; }
+    if (channelUpState       == LOW) { previousChannelUpState       = LOW; }
+    if (octaveUpState        == LOW) { previousOctaveUpState        = LOW; }
+    if (loopRecordState      == LOW) { previousLoopRecordState      = LOW; }
+    if (loopOverdubState     == LOW) { previousLoopOverdubState     = LOW; }
+    if (channelDownState     == LOW) { previousChannelDownState     = LOW; }
+    if (octaveDownState      == LOW) { previousOctaveDownState      = LOW; }
+    if (loopRecordTrigger    == LOW) { previousLoopRecordTrigger    = LOW; }
 
-    if (controlUpState      == LOW) { previousControlUpState        = LOW; }
-    if (controlMiddleState  == LOW) { previousControlMiddleState    = LOW; }
-    if (controlDownState    == LOW) { previousControlDownState      = LOW; }
-
-    if (metaAState          == LOW) { previousMetaAState            = LOW; }
-    if (metaBState          == LOW) { previousMetaBState            = LOW; }
-
-    leftDeckActive = LOW;   // Reset the whole deck activation status variables for the next loop (set in readDigitalButtons function)
-    rightDeckActive = LOW;  // Reset the whole deck activation status variables for the next loop (set in readDigitalButtons function)
 }
 // END LOOP SECTION
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
 // START FUNCTIONS SECTION
 
 void diagnosticTest()
 {
+    // Scratch area for printing diagnostics information to the serial console
+    // Serial.print(LLPotValue);
+    // Serial.print(" ");
+    // Serial.print(LMPotValue);
+    // Serial.print(" ");
+    // Serial.print(RMPotValue);
+    // Serial.print(" ");
+    // Serial.println(RRPotValue);
 
-    for (int buttonNumber = 0; buttonNumber < leftDeckElementCount; buttonNumber++)
-    {
-        Serial.print(activeButtonsLeft[buttonNumber]);
-    }
-    Serial.println();
-        for (int buttonNumber = 0; buttonNumber < rightDeckElementCount; buttonNumber++)
-    {
-        Serial.print(activeButtonsRight[buttonNumber]);
-    }
-    Serial.println();
-    for (int buttonNumber = 0; buttonNumber < controlDeckElementCount; buttonNumber++)
-    {
-        Serial.print(activeButtonsControl[buttonNumber]);
-    }
-    Serial.println();
-    Serial.print(ULPotAverage); Serial.print("\t");
-    Serial.print(URPotAverage); Serial.print("\t");
-    Serial.print(LLPotAverage); Serial.print("\t");
-    Serial.print(LRPotAverage); Serial.println();
+    // for (int i=0; i<deck2ElementCount; i++)
+    // {
+    //     Serial.print(deck2ActiveButtons[i]);
+    // }
+    // Serial.println();
+
 }
 
-void readDigitalButtons()
+void readDeck1DigitalButtons()
 {
-    // Left Deck
-    for (byte columnIndex = 0; columnIndex < leftDeckColumnCount; columnIndex++)                                // Iterate through each of the column pins.
+    // Button Deck
+    for (byte columnIndex = 0; columnIndex < deck1ColumnCount; columnIndex++)                                // Iterate through each of the column pins.
     {
-        byte currentColumn = leftDeckColumns[columnIndex];                                                      // Hold the currently selected column pin in a variable.
-        pinMode(currentColumn, OUTPUT);                                                                         // Set that column pin to OUTPUT mode and...
-        digitalWrite(currentColumn, LOW);                                                                       // set the pin state to LOW turning it into a temporary ground.
-        for (byte rowIndex = 0; rowIndex < buttonDeckRowCount; rowIndex++)                                      // Now iterate through each of the row pins that are connected to the current column pin.
+        byte currentColumn = deck1Columns[columnIndex];                                                      // Hold the currently selected column pin in a variable.
+        pinMode(currentColumn, OUTPUT);                                                                 // Set that column pin to OUTPUT mode and...
+        digitalWrite(currentColumn, LOW);                                                               // set the pin state to LOW turning it into a temporary ground.
+        for (byte rowIndex = 0; rowIndex < deck1RowCount; rowIndex++)                                        // Now iterate through each of the row pins that are connected to the current column pin.
         {                       
-            byte currentRow = buttonDeckRows[rowIndex];                                                         // Hold the currently selected row pin in a variable.
-            pinMode(currentRow, INPUT_PULLUP);                                                                  // Set that row pin to INPUT_PULLUP mode (+3.3V / HIGH).
-            byte buttonNumber = columnIndex + (rowIndex * leftDeckColumnCount);                                 // Assign this location in the matrix a unique number.
-            delayMicroseconds(25);                                                                              // Delay to give the pin modes time to change state (false readings are caused otherwise).
-            byte buttonState = digitalRead(currentRow);                                                         // Save the currently selected pin state in a variable.
-            if (buttonState == LOW && (currentTime - activeButtonsLeftTime[buttonNumber]) > debounceTime)       // If button is active (LOW due to INPUT_PULLUP) and passes debounce
+            byte currentRow = deck1Rows[rowIndex];                                                           // Hold the currently selected row pin in a variable.
+            pinMode(currentRow, INPUT_PULLUP);                                                          // Set that row pin to INPUT_PULLUP mode (+3.3V / HIGH).
+            byte buttonNumber = columnIndex + (rowIndex * deck1ColumnCount);                                 // Assign this location in the matrix a unique number.
+            delayMicroseconds(25);                                                                      // Delay to give the pin modes time to change state (false readings are caused otherwise).
+            byte buttonState = !digitalRead(currentRow);                                                // Invert reading due to INPUT_PULLUP, and store the currently selected pin state.
+            if (buttonState == HIGH && (millis() - deck1ActiveButtonsTime[buttonNumber]) > debounceTime)     // If button is active and passes debounce
             {
-                activeButtonsLeft[buttonNumber] = 1;                                                            // write a 1 to the storage variable
-                activeButtonsLeftTime[buttonNumber] = currentTime;                                              // and save the last button press time for debounce comparison.
+                deck1ActiveButtons[buttonNumber] = 1;                                                        // write a 1 to the storage variable
+                deck1ActiveButtonsTime[buttonNumber] = millis();                                             // and save the last button press time for later debounce comparison.
+                if (buttonNumber == 0 || buttonNumber == 2 || buttonNumber == 4 || buttonNumber > 9) { loopInputDetected = HIGH; }  // Activate loopInputDetected variable for looper ignoring non recorded buttons
             }
-            if (buttonState == HIGH)
+            if (buttonState == LOW)
             {
-                activeButtonsLeft[buttonNumber] = 0;                                                            // Or if the button is inactive, write a 0.
+                deck1ActiveButtons[buttonNumber] = 0;                                                        // Or if the button is inactive, write a 0.
             }
-            pinMode(currentRow, INPUT);                                                                         // Set the selected row pin back to INPUT mode (0V / LOW).
+            pinMode(currentRow, INPUT);                                                                 // Set the selected row pin back to INPUT mode (0V / LOW).
         }
-        pinMode(currentColumn, INPUT);                                                                          // Set the selected column pin back to INPUT mode (0V / LOW) and move onto the next column pin.
+        pinMode(currentColumn, INPUT);                                                                  // Set the selected column pin back to INPUT mode (0V / LOW) and move onto the next column pin.
     }
-    // Right Deck
-    for (byte columnIndex = 0; columnIndex < rightDeckColumnCount; columnIndex++)                               // Iterate through each of the column pins.
+    // Foot Pedal
+    velocityPedalState = !digitalRead(velocityPedalPin);                                                // Invert the reading due to INPUT_PULLUP
+}
+
+void readDeck2DigitalButtons()
+{
+    // Button Deck
+    for (byte columnIndex = 0; columnIndex < deck2ColumnCount; columnIndex++)                                // Iterate through each of the column pins.
     {
-        byte currentColumn = rightDeckColumns[columnIndex];                                                     // Hold the currently selected column pin in a variable.
-        pinMode(currentColumn, OUTPUT);                                                                         // Set that column pin to OUTPUT mode and...
-        digitalWrite(currentColumn, LOW);                                                                       // set the pin state to LOW turning it into a temporary ground.
-        for (byte rowIndex = 0; rowIndex < buttonDeckRowCount; rowIndex++)                                      // Now iterate through each of the row pins that are connected to the current column pin.
-        {
-            byte currentRow = buttonDeckRows[rowIndex];                                                         // Hold the currently selected row pin in a variable.
-            pinMode(currentRow, INPUT_PULLUP);                                                                  // Set that row pin to INPUT_PULLUP mode (+3.3V / HIGH).
-            byte buttonNumber = columnIndex + (rowIndex * rightDeckColumnCount);                                // Assign this location in the matrix a unique number.
-            delayMicroseconds(25);                                                                              // Delay to give the pin modes time to change state (false readings are caused otherwise).
-            byte buttonState = digitalRead(currentRow);                                                         // Save the currently selected pin state in a variable.
-            if (buttonState == LOW && (currentTime - activeButtonsRightTime[buttonNumber]) > debounceTime)      // If button is active (LOW due to INPUT_PULLUP) and passes debounce
+        byte currentColumn = deck2Columns[columnIndex];                                                      // Hold the currently selected column pin in a variable.
+        pinMode(currentColumn, OUTPUT);                                                                 // Set that column pin to OUTPUT mode and...
+        digitalWrite(currentColumn, LOW);                                                               // set the pin state to LOW turning it into a temporary ground.
+        for (byte rowIndex = 0; rowIndex < deck2RowCount; rowIndex++)                                        // Now iterate through each of the row pins that are connected to the current column pin.
+        {                       
+            byte currentRow = deck2Rows[rowIndex];                                                           // Hold the currently selected row pin in a variable.
+            pinMode(currentRow, INPUT_PULLUP);                                                          // Set that row pin to INPUT_PULLUP mode (+3.3V / HIGH).
+            byte buttonNumber = columnIndex + (rowIndex * deck2ColumnCount);                                 // Assign this location in the matrix a unique number.
+            delayMicroseconds(25);                                                                      // Delay to give the pin modes time to change state (false readings are caused otherwise).
+            byte buttonState = !digitalRead(currentRow);                                                // Invert reading due to INPUT_PULLUP, and store the currently selected pin state.
+            if (buttonState == HIGH && (millis() - deck2ActiveButtonsTime[buttonNumber]) > debounceTime)     // If button is active and passes debounce
             {
-                activeButtonsRight[buttonNumber] = 1;                                                           // write a 1 to the storage variable
-                activeButtonsRightTime[buttonNumber] = currentTime;                                             // and save the last button press time for debounce comparison.
+                deck2ActiveButtons[buttonNumber] = 1;                                                        // write a 1 to the storage variable
+                deck2ActiveButtonsTime[buttonNumber] = millis();                                             // and save the last button press time for later debounce comparison.
+                if (buttonNumber == 0 || buttonNumber == 2 || buttonNumber == 4 || buttonNumber > 9) { loopInputDetected = HIGH; }  // Activate loopInputDetected variable for looper ignoring non recorded buttons
             }
-            if (buttonState == HIGH)
+            if (buttonState == LOW)
             {
-                activeButtonsRight[buttonNumber] = 0;                                                           // Or if the button is inactive, write a 0.
+                deck2ActiveButtons[buttonNumber] = 0;                                                        // Or if the button is inactive, write a 0.
             }
-            pinMode(currentRow, INPUT);                                                                         // Set the selected row pin back to INPUT mode (0V / LOW).
+            pinMode(currentRow, INPUT);                                                                 // Set the selected row pin back to INPUT mode (0V / LOW).
         }
-        pinMode(currentColumn, INPUT);                                                                          // Set the selected column pin back to INPUT mode (0V / LOW) and move onto the next column pin.
+        pinMode(currentColumn, INPUT);                                                                  // Set the selected column pin back to INPUT mode (0V / LOW) and move onto the next column pin.
     }
-    // Control Deck
-    for (byte columnIndex = 0; columnIndex < controlDeckColumnCount; columnIndex++)                             // Iterate through each of the column pins.
-    {
-        byte currentColumn = controlDeckColumns[columnIndex];                                                   // Hold the currently selected column pin in a variable.
-        pinMode(currentColumn, OUTPUT);                                                                         // Set that column pin to OUTPUT mode and...
-        digitalWrite(currentColumn, LOW);                                                                       // set the pin state to LOW turning it into a temporary ground.
-        for (byte rowIndex = 0; rowIndex < controlDeckRowCount; rowIndex++)                                     // Now iterate through each of the row pins that are connected to the current column pin.
-        {
-            byte currentRow = controlDeckRows[rowIndex];                                                        // Hold the currently selected row pin in a variable.
-            pinMode(currentRow, INPUT_PULLUP);                                                                  // Set that row pin to INPUT_PULLUP mode (+3.3V / HIGH).
-            byte buttonNumber = columnIndex + (rowIndex * controlDeckColumnCount);                              // Assign this location in the matrix a unique number.
-            delayMicroseconds(25);                                                                              // Delay to give the pin modes time to change state (false readings are caused otherwise).
-            byte buttonState = digitalRead(currentRow);                                                         // Save the currently selected pin state in a variable.
-            if (buttonState == LOW && (currentTime - activeButtonsControlTime[buttonNumber]) > debounceTime)    // If button is active (LOW due to INPUT_PULLUP) and passes debounce
-            {
-                activeButtonsControl[buttonNumber] = 1;                                                         // write a 1 to the storage variable
-                activeButtonsControlTime[buttonNumber] = currentTime;                                           // and save the last button press time for debounce comparison.
-            }
-            if (buttonState == HIGH)
-            {
-                activeButtonsControl[buttonNumber] = 0;                                                         // Or if the button is inactive, write a 0.
-            }
-            pinMode(currentRow, INPUT);                                                                         // Set the selected row pin back to INPUT mode (0V / LOW).
-        }
-        pinMode(currentColumn, INPUT);                                                                          // Set the selected column pin back to INPUT mode (0V / LOW) and move onto the next column pin.
-    }
-    // Save the entire deck's activation status for comparison purposes
-    for (int buttonNumber = 0; buttonNumber < leftDeckElementCount; buttonNumber++)                             // For all buttons in the left deck
-    {
-        if (activeButtonsLeft[buttonNumber] == 1)                                                               // Check to see if any key was held
-        {
-            leftDeckActive = HIGH;                                                                              // If yes, set activation status to HIGH
-        }
-    }
-    for (int buttonNumber = 0; buttonNumber < rightDeckElementCount; buttonNumber++)                            // For all buttons in the left deck
-    {
-        if (activeButtonsRight[buttonNumber] == 1)                                                              // Check to see if a key was held in the right deck
-        {
-            rightDeckActive = HIGH;                                                                             // If yes, set activation status to HIGH
-        }
-    }
+    // Foot Pedal
+    velocityPedalState = !digitalRead(velocityPedalPin);                                                // Invert the reading due to INPUT_PULLUP
 }
 
 void readAnalogKnobs()
 {
-    // Upper Left Potentiometer
-    ULPotTotal = ULPotTotal - ULPotReadings[analogIndex];       // Remove the oldest reading from the array
-    ULPotReadings[analogIndex] = analogRead(ULPotPin);          // Update this position array with the fresh reading from the sensor
-    ULPotTotal = ULPotTotal + ULPotReadings[analogIndex];       // Add the fresh reading to the running total
-    ULPotAverage = ULPotTotal / analogReadings;                 // Calculate and store the average
-    // Upper Right Potentiometer
-    URPotTotal = URPotTotal - URPotReadings[analogIndex];       // Remove the oldest reading from the array
-    URPotReadings[analogIndex] = analogRead(URPotPin);          // Update this position array with the fresh reading from the sensor
-    URPotTotal = URPotTotal + URPotReadings[analogIndex];       // Add the fresh reading to the running total
-    URPotAverage = URPotTotal / analogReadings;                 // Calculate and store the average
-    // Lower Left Potentiometer
-    LLPotTotal = LLPotTotal - LLPotReadings[analogIndex];       // Remove the oldest reading from the array
-    LLPotReadings[analogIndex] = analogRead(LLPotPin);          // Update this position array with the fresh reading from the sensor
-    LLPotTotal = LLPotTotal + LLPotReadings[analogIndex];       // Add the fresh reading to the running total
-    LLPotAverage = LLPotTotal / analogReadings;                 // Calculate and store the average
-    // Lower Right Potentiometer
-    LRPotTotal = LRPotTotal - LRPotReadings[analogIndex];       // Remove the oldest reading from the array
-    LRPotReadings[analogIndex] = analogRead(LRPotPin);          // Update this position array with the fresh reading from the sensor
-    LRPotTotal = LRPotTotal + LRPotReadings[analogIndex];       // Add the fresh reading to the running total
-    LRPotAverage = LRPotTotal / analogReadings;                 // Calculate and store the average
-    // Increment or reset the index counter
-    analogIndex = analogIndex + 1;                              // Increment the index counter
-    if (analogIndex >= analogReadings)                          // If the current index number is greater than the desired number of averages
-    {
-        analogIndex = 0;                                        // Reset the index counter to 0
-    }
+    LLPotValue = analogRead(LLPotPin);                                                                  // Store full 10 bit value
+    LMPotValue = analogRead(LMPotPin);                                                                  // Store full 10 bit value
+    RMPotValue = map(analogRead(RMPotPin), 0, 1023, 0, 127);                                            // Map to a 7 bit value for MIDI
+    RRPotValue = map(analogRead(RRPotPin), 0, 1023, 0, 127);                                            // Map to a 7 bit value for MIDI
 }
 
 void runControlModule()
 {
-    // Analog Knobs
-    if (ULPotAverage > (previousULPotAverage + analogDeadzone) || ULPotAverage < (previousULPotAverage - analogDeadzone)) // Deadzone to prevent noise from updating constantly
+    // Analog MIDI CC Knobs
+    if (LLPotValue > (analogDeadzone * 6))
     {
-            leftDeckVelocity = map(ULPotAverage, 0, 1023, 0, 127);                      // Map to 7-bit value
-            previousULPotAverage = ULPotAverage;                                        // Update "previous" variable for comparison on next loop
+        if ((LLPotValue > (previousLLPotValue + (analogDeadzone * 6)) || LLPotValue < (previousLLPotValue - (analogDeadzone * 6)))  // Deadzone to squelch noise * 6 due to greater range
+           && ((millis() - previousLLPotTime) > analogDelayTime) )                                                     // Rate limit analog readings in case we are sending values to MIDI so that we don't overrun the buffer
+        {
+           metronomeSpeed = map(LLPotValue, (analogDeadzone * 6), 1023, metronomeMax, metronomeMin);                   // Map metronome speed to defined boundaries
+           previousLLPotValue = LLPotValue;                                                                            // Update "previous" variable for comparison on next loop
+           previousLLPotTime = millis();                                                                               // Update "previous" variable for comparison on next loop
+        }
     }
-    if (URPotAverage > (previousURPotAverage + analogDeadzone) || URPotAverage < (previousURPotAverage - analogDeadzone)) // Deadzone to prevent noise from updating constantly
+    if (LLPotValue <= (analogDeadzone * 6))
     {
-            rightDeckVelocity = map(URPotAverage, 0, 1023, 0, 127);                     // Map to 7-bit value
-            previousURPotAverage = URPotAverage;                                        // Update "previous" variable for comparison on next loop
+        metronomeSpeed = 0;
     }
-    if (LLPotAverage > (previousLLPotAverage + analogDeadzone) || LLPotAverage < (previousLLPotAverage - analogDeadzone)) // Deadzone to prevent noise from updating constantly
+
+
+    if ((LMPotValue > (previousLMPotValue + (analogDeadzone * 6)) || LMPotValue < (previousLMPotValue - (analogDeadzone * 6)))  // Deadzone to squelch noise * 6 due to greater range
+        && ((millis() - previousLMPotTime) > analogDelayTime) )                                                     // Rate limit analog readings in case we are sending values to MIDI so that we don't overrun the buffer
     {
-        multiVelocity = map(LLPotAverage, 0, 1023, 0, 127);                             // Map to 7-bit value
-        previousLLPotAverage = LLPotAverage;                                            // Update "previous" variable for comparison on next loop
+        looperVelocity = map(LMPotValue, 0, 1023, 0, 2000);
+        previousLMPotValue = LMPotValue;                                                                            // Update "previous" variable for comparison on next loop
+        previousLMPotTime = millis();                                                                               // Update "previous" variable for comparison on next loop
     }
-    if (LRPotAverage > (previousLRPotAverage + analogDeadzone) || LRPotAverage < (previousLRPotAverage - analogDeadzone)) // Deadzone to prevent noise from updating constantly
+
+
+    if ((RMPotValue > (previousRMPotValue + analogDeadzone) || RMPotValue < (previousRMPotValue - analogDeadzone))  // Deadzone to squelch noise
+        && ((millis() - previousRMPotTime) > analogDelayTime) )                                                     // Rate limit analog readings in case we are sending values to MIDI so that we don't overrun the buffer
     {
-        metronomeSpeed = map(LRPotAverage, 0, 1023, 195, 1000);                         // Map to metronome click delay in milliseconds (with slight deadzone margin) 200ms = 300bpm, 1000ms = 60bpm
-        previousLRPotAverage = LRPotAverage;                                            // Update "previous" variable for comparison on next loop
+        if (modulationState == HIGH && previousModulationState == HIGH)                                             // If the modulation button is currently being held, allow updating
+        {
+            controlChange(midiChannel, 1, constrain(RMPotValue, 0, 127));                                           // Send modulation (MIDI CC #1) - Constrain to 7 bit value
+        }
+        previousRMPotValue = RMPotValue;                                                                            // Update "previous" variable for comparison on next loop
+        previousRMPotTime = millis();                                                                               // Update "previous" variable for comparison on next loop
+    }
+    if ((RRPotValue > (previousRRPotValue + analogDeadzone) || RRPotValue < (previousRRPotValue - analogDeadzone))  // Deadzone to squelch noise
+        && ((millis() - previousRRPotTime) > analogDelayTime) )                                                     // Rate limit analog readings in case we are sending values to MIDI so that we don't overrun the buffer
+    {
+        velocity = constrain(RRPotValue, 0, 127);                                                                   // Velocity level - Constrain to 7-bit value
+        previousRRPotValue = RRPotValue;                                                                            // Update "previous" variable for comparison on next loop
+        previousRRPotTime = millis();                                                                               // Update "previous" variable for comparison on next loop
     }
     // Digital Buttons
-    for (int buttonNumber = 0; buttonNumber < controlDeckElementCount; buttonNumber++)
+    for (int buttonNumber = 0; buttonNumber < 10; buttonNumber++)                                                   // Limit to the 10 buttons in the control panel
     {
-        if (activeButtonsControl[buttonNumber] != previousActiveButtonsControl[buttonNumber])   // Compare current button state to the previous state, and if a difference is found...
+        if (deck1ActiveButtons[buttonNumber] != deck1PreviousActiveButtons[buttonNumber])                                     // Compare current button state to the previous state, and if a difference is found...
         {
-            if (activeButtonsControl[buttonNumber] == 1)                                        // If the buttons is active
+            if (deck1ActiveButtons[buttonNumber] == 1)                                                                   // If the buttons is active
             {
-                if (buttonNumber == 0) { expressionPedalState  = HIGH; }                        // Set the state to HIGH (active)
-                if (buttonNumber == 1) { loopPedalState        = HIGH; }
-                if (buttonNumber == 2) { controlUpState        = HIGH; }
-                if (buttonNumber == 3) { controlMiddleState    = HIGH; }
-                if (buttonNumber == 4) { controlDownState      = HIGH; }
-                if (buttonNumber == 5 && loopRecordingEnabled == LOW) { metaAState = HIGH; }    // Disallow meta keys when recording is in progress to prevent mid loop program changes
-                if (buttonNumber == 6 && loopRecordingEnabled == LOW) { metaBState = HIGH; }
-                if (buttonNumber == 7) { loopButtonState       = HIGH; }
-                previousActiveButtonsControl[buttonNumber] = 1;                                 // Update the "previous" variable for the next loop
+                if (buttonNumber == 0) { pitchDownState     = HIGH; }                                               // Set the state to HIGH (active)
+                if (buttonNumber == 1) { loopRecordTrigger  = HIGH; }
+                if (buttonNumber == 2) { modulationState    = HIGH; }
+                if (buttonNumber == 3) { loopOverdubState   = HIGH; loopOverdubTrigger = HIGH; }                    // Secondary state tracking to blip overdub button if held through a looper rollover 
+                if (buttonNumber == 4) { pitchUpState       = HIGH; }
+                if (buttonNumber == 5) { metaKeyState       = HIGH; }
+                if (buttonNumber == 6 && deck1ActiveButtons[1] == 0 && deck1ActiveButtons[3] == 0) { channelUpState     = HIGH; } // Disallow channel changes while recording to loop
+                if (buttonNumber == 7 && deck1ActiveButtons[1] == 0 && deck1ActiveButtons[3] == 0) { channelDownState   = HIGH; } // Disallow channel changes while recording to loop
+                if (buttonNumber == 8) { octaveUpState      = HIGH; }
+                if (buttonNumber == 9) { octaveDownState    = HIGH; }
+                deck1PreviousActiveButtons[buttonNumber] = 1;                                                            // Update the "previous" variable for comparison next loop
             }
-            else                                                                                // If the button is inactive
+            if (deck1ActiveButtons[buttonNumber] == 0)                                                                   // If the button is inactive
             {
-                if (buttonNumber == 0) { expressionPedalState  = LOW; }                         // Set the state to LOW (inactive)
-                if (buttonNumber == 1) { loopPedalState        = LOW; }
-                if (buttonNumber == 2) { controlUpState        = LOW; }
-                if (buttonNumber == 3) { controlMiddleState    = LOW; }
-                if (buttonNumber == 4) { controlDownState      = LOW; }
-                if (buttonNumber == 5) { metaAState            = LOW; }
-                if (buttonNumber == 6) { metaBState            = LOW; }
-                if (buttonNumber == 7) { loopButtonState       = LOW; }
-                previousActiveButtonsControl[buttonNumber] = 0;                                 // Update the "previous" variable for the next loop
+                if (buttonNumber == 0) { pitchDownState     = LOW; }                                                // Set the state to LOW (inactive)
+                if (buttonNumber == 1) { loopRecordTrigger  = LOW; }
+                if (buttonNumber == 2) { modulationState    = LOW; }
+                if (buttonNumber == 3) { loopOverdubState   = LOW; loopOverdubTrigger = LOW; }                      // Secondary state tracking to blip overdub button if held through a looper rollover 
+                if (buttonNumber == 4) { pitchUpState       = LOW; }
+                if (buttonNumber == 5) { metaKeyState       = LOW; }
+                if (buttonNumber == 6) { channelUpState     = LOW; }
+                if (buttonNumber == 7) { channelDownState   = LOW; }
+                if (buttonNumber == 8) { octaveUpState      = LOW; }
+                if (buttonNumber == 9) { octaveDownState    = LOW; }
+                deck1PreviousActiveButtons[buttonNumber] = 0;                                                            // Update the "previous" variable for conparison next loop
             }
         }
     }
-    // Loop button and pedal both activate the same toggle
-    if (loopButtonState == LOW && loopPedalState == LOW)
+
+    if (loopRecordTrigger == HIGH && previousLoopRecordTrigger == LOW && loopRecordState == LOW)                    // Secondary state tracking to engage looper on button press, and disengage on subsequent press.
+    {                                                                                                               // Prevents the user from needing to hold the record button down while recording the parent loop track.
+        previousLoopRecordTrigger = HIGH;                                                                           // The OVERDUB button must still be held, because if that button remains engaged during a loop
+        loopRecordState = HIGH;                                                                                     // rollover, the MIDI channel is incremented, and a new overdub track will immediately begin recording.
+    }                                                                                                               // Needing to remember to hit THAT button again to disable recording in the heat of the moment is not
+    if (loopRecordTrigger == HIGH && previousLoopRecordTrigger == LOW && loopRecordState == HIGH)                   // ideal from a user interface perspective, as tracks will continue incrementing forever otherwise.
     {
-        loopActivationState = LOW;
+        previousLoopRecordTrigger = HIGH;
+        loopRecordState = LOW;
     }
-    if (loopButtonState || loopPedalState)
+
+}
+
+
+void runMetronome()
+{
+    if (metronomeSpeed > 0 && (millis() - previousMetronomeTime) > metronomeSpeed)
     {
-        loopActivationState = HIGH;
+        loopNoteOff(9, 56, 0);
+        loopNoteOn(9, 56, 63);
+        previousMetronomeTime = millis();
     }
 }
 
+
 void runProgramSelect()
 {
-    // Left Deck
-    if (metaAState == HIGH && metaBState == LOW)                                        // If the Meta A key is held (main program selection)
+    if (metaKeyState == HIGH)                                                                                   // If the meta key is held
     {
-        for (int i = 0; i < leftDeckElementCount; i++)                                  // For all buttons in the left deck...
+        if (channelUpState == HIGH && previousChannelUpState == LOW && midiProgram[midiChannel] < 118)          // Keep program in bounds (0-127)
         {
-            if (activeButtonsLeft[i] != previousActiveButtonsLeft[i])                   // Compare current button state to the previous state, and if a difference is found...
+            previousChannelUpState = HIGH;                                                                      // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                             // For all note buttons in the deck
             {
-                if (activeButtonsLeft[i] == 1)                                          // If the button is active
-                {
-                    previousMetaAState = HIGH;                                          // Required for detecting hanging notes when running program selection
-                    if (leftDeckDrumsModeEnabled == HIGH)                               // If drums mode is enabled
-                    {
-                        midiProgram[drumsChannel] = leftDeckMidiProgramsA[i];           // Update the program saved for this channel
-                        programChange(drumsChannel, leftDeckMidiProgramsA[i]);          // Change the program for this channel
-                        noteOn(drumsChannel, 38, leftDeckVelocity);                     // Always play snare (note #38) when sampling
-                    }
-                    if (leftDeckDrumsModeEnabled == LOW)                                // If drums mode is disabled
-                    {
-                        midiProgram[leftDeckMidiChannel] = leftDeckMidiProgramsA[i];    // Update the program saved for this channel
-                        programChange(leftDeckMidiChannel, leftDeckMidiProgramsA[i]);   // Change the program for this channel
-                        noteOn(leftDeckMidiChannel, 57, leftDeckVelocity);              // Always play A3 (note #57) when sampling
-                    }
-                    previousActiveButtonsLeft[i] = 1;                                   // Update the "previous" variable for comparison on next loop.
-                }
-                if (activeButtonsLeft[i] == 0 && leftDeckActive == LOW)                 // Only send a noteOff if no keys are held.  The preview only plays one note (A3 - #57), and it would be quickly squelched otherwise
-                {
-                    if (leftDeckDrumsModeEnabled == HIGH)                               // If drums mode is enabled
-                    {
-                        noteOff(leftDeckMidiChannel, 38, 0);                            // Snare (note #38)
-                        previousActiveButtonsLeft[i] = 0;                               // Update the "previous" variable for comparison on next loop.
-                    }
-                    if (leftDeckDrumsModeEnabled == LOW)                                // If drums mode is disabled
-                    {
-                        noteOff(leftDeckMidiChannel, 57, 0);                            // A3 (note #57)
-                        previousActiveButtonsLeft[i] = 0;                               // Update the "previous" variable for comparison on next loop.
-                    }
-                }
+                deck1ActiveButtons[i] = 0;                                                                           // Pop any active notes to allow for quick sampling when changing programs
             }
+            playNotes();
+            midiProgram[midiChannel] = midiProgram[midiChannel] + 10;                                           // Increment program by 10
+            programChange(midiChannel, midiProgram[midiChannel]);                                               // Change the program for this channel
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
         }
-    }
-    if (metaAState == HIGH && metaBState == HIGH)                                       // If both meta keys are held
-    {
-        for (int i = 0; i <= 24; i++)                                                   // For all remaining program change values in the left deck (top section is main, bottom selection is layer)
+        if (channelDownState == HIGH && previousChannelDownState == LOW && midiProgram[midiChannel] > 9)        // Keep program in bounds (0-127)
         {
-            if (activeButtonsLeft[i] != previousActiveButtonsLeft[i])                   // Compare current button state to the previous state, and if a difference is found...
+            previousChannelDownState = HIGH;                                                                    // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                             // For all note buttons in the deck
             {
-                if (activeButtonsLeft[i] == 1)                                          // If the button is active
-                {
-                    previousMetaAState = HIGH;                                          // Required for catching hanging notes when running program selection
-                    midiProgram[leftDeckMidiChannel] = leftDeckMidiProgramsB[i];        // Update the program saved for this channel
-                    programChange(leftDeckMidiChannel, leftDeckMidiProgramsB[i]);       // Change the program for this channel
-                    noteOn(leftDeckMidiChannel, 57, leftDeckVelocity);                  // Always play A3 (note #57) when sampling
-                    previousActiveButtonsLeft[i] = 1;                                   // Update the "previous" variable for comparison on next loop.
-                }
-                if (activeButtonsLeft[i] == 0 && leftDeckActive == LOW)                 // Only send a noteOff if no keys are held.  The preview only plays one note (A3 - #57), and it would be quickly squelched otherwise
-                {
-                    noteOff(leftDeckMidiChannel, 57, 0);                                // A3 (note #57)
-                    previousActiveButtonsLeft[i] = 0;                                   // Update the "previous" variable for comparison on next loop.
-                }
+                deck1ActiveButtons[i] = 0;                                                                           // Pop any active notes to allow for quick sampling when changing programs
             }
+            playNotes();
+            midiProgram[midiChannel] = midiProgram[midiChannel] - 10;                                           // Decrement program by 10
+            programChange(midiChannel, midiProgram[midiChannel]);                                               // Change the program for this channel
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
         }
-    }
-    // Right Deck
-    if (metaAState == HIGH && metaBState == LOW)                                        // If the Meta A key is held (main program selection)
-    {
-        for (int i = 0; i < rightDeckElementCount; i++)                                 // For all buttons in the right deck...
+        if (channelUpState == HIGH && channelDownState == HIGH && midiProgram[midiChannel] != 0)                // If both keys are pressed simultaneously and program is not 0
         {
-            if (activeButtonsRight[i] != previousActiveButtonsRight[i])                 // Compare current button state to the previous state, and if a difference is found...
+            for (int i = 10; i < deck1ElementCount; i++)                                                             // For all note buttons in the deck
             {
-                if (activeButtonsRight[i] == 1)                                         // If the button is active
-                {
-                    previousMetaAState = HIGH;                                          // Required for detecting hanging notes when running program selection
-                    midiProgram[rightDeckMidiChannel] = rightDeckMidiProgramsA[i];      // Update the program saved for this channel
-                    programChange(rightDeckMidiChannel, rightDeckMidiProgramsA[i]);     // Change the program for this channel
-                    noteOn(rightDeckMidiChannel, 57, rightDeckVelocity);                // Always play A3 (note #57) when sampling
-                    previousActiveButtonsRight[i] = 1;                                  // Update the "previous" variable for comparison on next loop.
-                }
-                if (activeButtonsRight[i] == 0 && rightDeckActive == LOW)               // Only send a noteOff if no keys are held.  The preview only plays one note (A3 - #57), and it would be quickly squelched otherwise
-                {
-                    noteOff(rightDeckMidiChannel, 57, 0);                               // A3 (note #57)
-                    previousActiveButtonsRight[i] = 0;                                  // Update the "previous" variable for comparison on next loop.
-                }
+                deck1ActiveButtons[i] = 0;                                                                           // Pop any active notes to allow for quick sampling when changing programs
             }
+            playNotes();
+            midiProgram[midiChannel] = 0;                                                                       // Reset program to 0
+            programChange(midiChannel, midiProgram[midiChannel]);                                               // Change the program for this channel
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
         }
-    }
-    if (metaAState == HIGH && metaBState == HIGH)                                       // If both meta keys are held
-    {
-        for (int i = 0; i <= 25; i++)                                                   // For all remaining program change values in the right deck (top section is main, bottom selection is layer)
-        {
-            if (activeButtonsRight[i] != previousActiveButtonsRight[i])                 // Compare current button state to the previous state, and if a difference is found...
-            {
-                if (activeButtonsRight[i] == 1)                                         // If the button is active
-                {
-                    previousMetaAState = HIGH;                                          // Required for catching hanging notes when running program selection
-                    midiProgram[rightDeckMidiChannel] = rightDeckMidiProgramsB[i];      // Update the program saved for this channel
-                    programChange(rightDeckMidiChannel, rightDeckMidiProgramsB[i]);     // Change the program for this channel
-                    noteOn(rightDeckMidiChannel, 57, rightDeckVelocity);                // Always play A3 (note #57) when sampling
-                    previousActiveButtonsRight[i] = 1;                                  // Update the "previous" variable for comparison on next loop.
-                }
-                if (activeButtonsRight[i] == 0 && rightDeckActive == LOW)               // Only send a noteOff if no keys are held.  The preview only plays one note (A3 - #57), and it would be quickly squelched otherwise
-                {
-                    noteOff(rightDeckMidiChannel, 57, 0);                               // A3 (note #57)
-                    previousActiveButtonsRight[i] = 0;                                  // Update the "previous" variable for comparison on next loop.
-                }
-            }
-        }
-    }
-   // Left Deck Layer
-    if (metaAState == LOW && metaBState == HIGH)                                        // If Meta B key is held (layer program selection)
-    {
-        for (int i = 0; i < leftDeckElementCount; i++)                                  // For all buttons in the left deck...
-        {
-            if (activeButtonsLeft[i] != previousActiveButtonsLeft[i])                   // Compare current button state to the previous state, and if a difference is found...
-            {
-                if (activeButtonsLeft[i] == 1)                                          // If the button is active
-                {
-                    previousMetaBState = HIGH;                                          // Required for catching hanging notes when running program selection
-                    leftDeckLayerNotesEnabled = HIGH;                                   // Enable the layer functionality in the playNotes functions
-                    midiProgram[leftDeckLayerMidiChannel] = leftDeckMidiProgramsA[i];   // Update the program saved for this channel
-                    programChange(leftDeckLayerMidiChannel, leftDeckMidiProgramsA[i]);  // Change the program for this channel
-                    noteOn(leftDeckLayerMidiChannel, 57, multiVelocity);                // Always play A3 (note #57) when sampling
-                    previousActiveButtonsLeft[i] = 1;                                   // Update the "previous" variable for comparison on next loop.
-                }
-                if (activeButtonsLeft[i] == 0 && leftDeckActive == LOW)                 // Only send a noteOff if no keys are held.  The preview only plays one note (A3 - #57), and it would be quickly squelched otherwise
-                {
-                    noteOff(leftDeckLayerMidiChannel, 57, 0);                           // A3 (note #57)
-                    previousActiveButtonsLeft[i] = 0;                                   // Update the "previous" variable for comparison on next loop.
-                }
-            }
-        }
-    }
-    if (metaAState == HIGH && metaBState == HIGH)                                       // If both meta keys are held
-    {
-        for (int i = 25; i <= 79; i++)                                                  // Disable layer if a non program assigned button is pressed among the remaining buttons
-        {
-            if (activeButtonsLeft[i] != previousActiveButtonsLeft[i])                   // Compare current button state to the previous state, and if a difference is found...
-            {
-                if (activeButtonsLeft[i] == 1)                                          // If the button is active
-                {
-                    leftDeckLayerNotesEnabled = LOW;                                    // Disable the layer channel (functionality is in the playNotes function)
-                }
-            }
-        }
-        for (int i = 80; i <= 104; i++)                                                 // For all remaining program change values in the left deck layer, bottom section...
-        {
-            if (activeButtonsLeft[i] != previousActiveButtonsLeft[i])                   // Compare current button state to the previous state, and if a difference is found...
-            {
-                if (activeButtonsLeft[i] == 1)                                          // If the button is active
-                {
-                    previousMetaAState = HIGH;                                          // Required for catching hanging notes when running program selection
-                    leftDeckLayerNotesEnabled = HIGH;                                   // Enable the layer functionality in the playNotes function
-                    midiProgram[leftDeckLayerMidiChannel] = leftDeckMidiProgramsB[i];   // Update the program saved for this channel
-                    programChange(leftDeckLayerMidiChannel, leftDeckMidiProgramsB[i]);  // Change the program for this channel
-                    noteOn(leftDeckLayerMidiChannel, 57, multiVelocity);                // Always play A3 (note #57) when sampling
-                    previousActiveButtonsLeft[i] = 1;                                   // Update the "previous" variable for comparison on next loop.
-                }
-                if (activeButtonsLeft[i] == 0 && leftDeckActive == LOW)                 // Only send a noteOff if no keys are held.  The preview only plays one note (A3 - #57), and it would be quickly squelched otherwise
-                {
-                    noteOff(leftDeckLayerMidiChannel, 57, 0);                           // A3 (note #57)
-                    previousActiveButtonsLeft[i] = 0;                                   // Update the "previous" variable for comparison on next loop.
-                }
-            }
-        }
-    }
 
-   // Right Deck Layer
-    if (metaAState == LOW && metaBState == HIGH)                                        // If Meta B key is held (layer program selection)
-    {
-        for (int i = 0; i < rightDeckElementCount; i++)                                 // For all buttons in the right deck...
+        if (octaveUpState == HIGH && previousOctaveUpState == LOW && midiProgram[midiChannel] < 127)            // Keep program in bounds (0-127)
         {
-            if (activeButtonsRight[i] != previousActiveButtonsRight[i])                 // Compare current button state to the previous state, and if a difference is found...
+            previousOctaveUpState = HIGH;                                                                       // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                             // For all note buttons in the deck
             {
-                if (activeButtonsRight[i] == 1)                                         // If the button is active
-                {
-                    previousMetaBState = HIGH;                                          // Required for catching hanging notes when running program selection
-                    rightDeckLayerNotesEnabled = HIGH;                                  // Enable the layer functionality in the playNotes functions
-                    midiProgram[rightDeckLayerMidiChannel] = rightDeckMidiProgramsA[i]; // Update the program saved for this channel
-                    programChange(rightDeckLayerMidiChannel, rightDeckMidiProgramsA[i]);// Change the program for this channel
-                    noteOn(rightDeckLayerMidiChannel, 57, multiVelocity);               // Always play A3 (note #57) when sampling
-                    previousActiveButtonsRight[i] = 1;                                  // Update the "previous" variable for comparison on next loop.
-                }
-                if (activeButtonsRight[i] == 0 && rightDeckActive == LOW)               // Only send a noteOff if no keys are held.  The preview only plays one note (A3 - #57), and it would be quickly squelched otherwise
-                {
-                    noteOff(rightDeckLayerMidiChannel, 57, 0);                          // A3 (note #57)
-                    previousActiveButtonsRight[i] = 0;                                  // Update the "previous" variable for comparison on next loop.
-                }
+                deck1ActiveButtons[i] = 0;                                                                           // Pop any active notes to allow for quick sampling when changing programs
             }
+            playNotes();
+            midiProgram[midiChannel] = midiProgram[midiChannel] + 1;                                            // Increment program by 1
+            programChange(midiChannel, midiProgram[midiChannel]);                                               // Change the program for this channel
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
         }
-    }
-    if (metaAState == HIGH && metaBState == HIGH)                                       // If both meta keys are held
-    {
-        for (int i = 26; i <= 80; i++)                                                  // Disable layer if a non program assigned button is pressed among the remaining buttons
+        if (octaveDownState == HIGH && previousOctaveDownState == LOW && midiProgram[midiChannel] > 0)          // Keep program in bounds (0-127)
         {
-            if (activeButtonsRight[i] != previousActiveButtonsRight[i])                 // Compare current button state to the previous state, and if a difference is found...
+            previousOctaveDownState = HIGH;                                                                     // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                             // For all note buttons in the deck
             {
-                if (activeButtonsRight[i] == 1)                                         // If the button is active
-                {
-                    rightDeckLayerNotesEnabled = LOW;                                   // Disable the layer channel (functionality is in the playNotes function)
-                }
+                deck1ActiveButtons[i] = 0;                                                                           // Pop any active notes to allow for quick sampling when changing programs
             }
+            playNotes();
+            midiProgram[midiChannel] = midiProgram[midiChannel] - 1;                                            // Decrement program by 1
+            programChange(midiChannel, midiProgram[midiChannel]);                                               // Change the program for this channel
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
         }
-        for (int i = 81; i <= 105; i++)                                                 // For all remaining program change values in the right deck layer, bottom section...
+        if (octaveUpState == HIGH && octaveDownState == HIGH && midiProgram[midiChannel] != 0)                  // If both keys are pressed simultaneously and program is not 0
         {
-            if (activeButtonsRight[i] != previousActiveButtonsRight[i])                 // Compare current button state to the previous state, and if a difference is found...
+            for (int i = 10; i < deck1ElementCount; i++)                                                             // For all note buttons in the deck
             {
-                if (activeButtonsRight[i] == 1)                                         // If the button is active
-                {
-                    previousMetaAState = HIGH;                                          // Required for catching hanging notes when running program selection
-                    rightDeckLayerNotesEnabled = HIGH;                                  // Enable the layer functionality in the playNotes function
-                    midiProgram[rightDeckLayerMidiChannel] = rightDeckMidiProgramsB[i]; // Update the program saved for this channel
-                    programChange(rightDeckLayerMidiChannel, rightDeckMidiProgramsB[i]);// Change the program for this channel
-                    noteOn(rightDeckLayerMidiChannel, 57, multiVelocity);               // Always play A3 (note #57) when sampling
-                    previousActiveButtonsRight[i] = 1;                                  // Update the "previous" variable for comparison on next loop.
-                }
-                if (activeButtonsRight[i] == 0 && rightDeckActive == LOW)               // Only send a noteOff if no keys are held.  The preview only plays one note (A3 - #57), and it would be quickly squelched otherwise
-                {
-                    noteOff(rightDeckLayerMidiChannel, 57, 0);                          // A3 (note #57)
-                    previousActiveButtonsRight[i] = 0;                                  // Update the "previous" variable for comparison on next loop.
-                }
+                deck1ActiveButtons[i] = 0;                                                                           // Pop any active notes to allow for quick sampling when changing programs
             }
-        }
-    }
-    // Ensure that notes are not left hanging (i.e. no closing noteOff) if a meta key is released before a program selection note button
-    if (metaAState == LOW && previousMetaAState == HIGH && leftDeckActive == HIGH)      // If a key was held
-    {
-        noteOff(leftDeckMidiChannel, 57, 0);                                            // Send a noteOff for the program preview note A3 (note #57)
-        if (leftDeckLayerNotesEnabled == HIGH)
-        {
-            noteOff(leftDeckLayerMidiChannel, 57, 0);                                   // Send a noteOff for the program preview note A3 (note #57)
-        }
-        for (int i = 0; i < leftDeckElementCount; i++)
-        {
-            activeButtonsLeft[i] = 0;                                                   // Clear the note arrays to pop any active keys for this loop
-            previousActiveButtonsLeft[i] = 0;                                           // Also clear the "previous" variable to prevent any erroneous noteOffs
-        }
-    }
-    if (metaAState == LOW && previousMetaAState == HIGH && rightDeckActive == HIGH)     // If a key was held
-    {
-        noteOff(rightDeckMidiChannel, 57, 0);                                           // Send a noteOff for the program preview note A3 (note #57)
-        if (rightDeckLayerNotesEnabled == HIGH)
-        {
-            noteOff(rightDeckLayerMidiChannel, 57, 0);                                  // Send a noteOff for the program preview note A3 (note #57)
-        }
-        for (int i = 0; i < rightDeckElementCount; i++)
-        {
-            activeButtonsRight[i] = 0;                                                  // Clear the note arrays to pop any active keys for this loop
-            previousActiveButtonsRight[i] = 0;                                          // Also clear the "previous" variable to prevent any erroneous noteOffs
-        }
-    }
-    if (metaBState == LOW && previousMetaBState == HIGH && leftDeckActive == HIGH)      // If a key was held
-    {
-        noteOff(leftDeckMidiChannel, 57, 0);                                            // Send a noteOff for the program preview note A3 (note #57)
-        if (leftDeckLayerNotesEnabled == HIGH)
-        {
-            noteOff(leftDeckLayerMidiChannel, 57, 0);                                   // Send a noteOff for the program preview note A3 (note #57)
-        }
-        for (int i = 0; i < leftDeckElementCount; i++)
-        {
-            activeButtonsLeft[i] = 0;                                                   // Clear the note arrays to pop any active keys for this loop
-            previousActiveButtonsLeft[i] = 0;                                           // Also clear the "previous" variable to prevent any erroneous noteOffs
-        }
-    }
-    if (metaBState == LOW && previousMetaBState == HIGH && rightDeckActive == HIGH)     // If a key was held
-    {
-        noteOff(rightDeckMidiChannel, 57, 0);                                           // Send a noteOff for the program preview note A3 (note #57)
-        if (rightDeckLayerNotesEnabled == HIGH)
-        {
-            noteOff(rightDeckLayerMidiChannel, 57, 0);                                  // Send a noteOff for the program preview note A3 (note #57)
-        }
-        for (int i = 0; i < rightDeckElementCount; i++)
-        {
-            activeButtonsRight[i] = 0;                                                  // Clear the note arrays to pop any active keys for this loop
-            previousActiveButtonsRight[i] = 0;                                          // Also clear the "previous" variable to prevent any erroneous noteOffs
+            playNotes();
+            midiProgram[midiChannel] = 0;                                                                       // Reset program to 0
+            programChange(midiChannel, midiProgram[midiChannel]);                                               // Change the program for this channel
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
         }
     }
 }
 
 void runMidiCC()
 {
-    // Expression
-    if (expressionPedalState == HIGH && previousExpressionPedalState == LOW)                        // If the expression pedal is pressed
+    // Velocity Pedal
+    if (velocityPedalState == HIGH && previousVelocityPedalState == LOW)
     {
-        previousExpressionPedalState = HIGH;                                                        // Lock input
-        for (int midiChannel = 0; midiChannel < 4; midiChannel++)                                   // For MIDI channels 0-3 (left, right, left layer, right layer)
-        {
-            controlChange(midiChannel, 11, 127);                                                    // Enable expression full (127) (MIDI CC#11) - 7 bit value
-        }
+        previousVelocityPedalState = HIGH;                                                                      // Lock input until released
+        velocity = 127;                                                                                         // Set max velocity while the pedal is held
     }
-    if (expressionPedalState == LOW && previousExpressionPedalState == HIGH)                        // If the expression pedal is released
+    if (velocityPedalState == LOW && previousVelocityPedalState == HIGH)
     {
-        previousExpressionPedalState = LOW;                                                         // Lock input
-        for (int midiChannel = 0; midiChannel < 4; midiChannel++)                                   // For MIDI channels 0-3 (left, right, left layer, right layer)
-        {
-            controlChange(midiChannel, 11, 95);                                                     // Set expression level to default (95) (MIDI CC #11)
-        }
+        previousVelocityPedalState = LOW;                                                                       // Lock input until released
+        velocity = constrain(RRPotValue, 0, 127);                                                               // Constrain to 7-bit value
     }
     // Modulation
-    if (metaAState == LOW && metaBState == LOW)                                                     // If no meta keys are held
+    if (metaKeyState == LOW)                                                                                    // If no meta keys are held
     {
-        if (controlMiddleState == HIGH && previousControlMiddleState == LOW)                        // and the middle button is pressed
+        if (modulationState == HIGH && previousModulationState == LOW)                                          // and the modulation button is pressed
         {
-            previousControlMiddleState = HIGH;                                                      // Lock input
-            // MIDI channels 2-3 only (right main, right layer)
-            controlChange(rightDeckMidiChannel, 1, 127);                                            // Enable modulation full (MIDI CC #1) - 7 bit value
-            controlChange(rightDeckLayerMidiChannel, 1, 127);                                       // Enable modulation full (MIDI CC #1) - 7 bit value
+            previousModulationState = HIGH;                                                                     // Lock input until released
+            controlChange(midiChannel, 1, constrain(RMPotValue, 0, 127));                                       // Enable modulation (MIDI CC #1) - Constrain to 7 bit value
         }
-        if (controlMiddleState == LOW && previousControlMiddleState == HIGH)                        // if the middle button is released
+        if (modulationState == LOW && previousModulationState == HIGH)                                          // if the modulation button is released
         {
-            previousControlMiddleState = HIGH;                                                      // Lock input
-            // MIDI channels 2-3 only (right main, right layer)
-            controlChange(rightDeckMidiChannel, 1, 0);                                              // Disable modulation (MIDI CC #1) - 7 bit value
-            controlChange(rightDeckLayerMidiChannel, 1, 0);                                         // Disable modulation (MIDI CC #1) - 7 bit value
-        }
-
-    }
-    // Chorus
-    if (metaAState == HIGH && metaBState == LOW)                                                    // If Meta A key is held and the middle button is pressed
-    {
-        if (controlMiddleState == HIGH && previousControlMiddleState == LOW && chorusState == LOW)  // If chorus is disabled
-        {
-            previousControlMiddleState = HIGH;                                                      // Lock input
-            for (int midiChannel = 0; midiChannel < 4; midiChannel++)                               // For MIDI channels 0-3 (left, right, left layer, right layer)
-            {
-                controlChange(midiChannel, 93, 127);                                                // Enable chorus full (MIDI CC #93) - 7 bit value
-            }
-            chorusState = HIGH;                                                                     // Set chorus state to enabled
-        }
-        if (controlMiddleState == HIGH && previousControlMiddleState == LOW && chorusState == HIGH) // If chorus is enabled
-        {
-            previousControlMiddleState = HIGH;                                                      // Lock input
-            for (int midiChannel = 0; midiChannel < 4; midiChannel++)                               // For MIDI channels 0-3 (left, right, left layer, right layer)
-            {
-                controlChange(midiChannel, 93, 0);                                                  // Disable chorus (MIDI CC #93) - 7 bit value
-            }
-            chorusState = LOW;                                                                      // Set chorus state to disabled
+            previousModulationState = HIGH;                                                                     // Lock input until released
+            controlChange(midiChannel, 1, 0);                                                                   // Disable modulation (MIDI CC #1) - 7 bit value
         }
     }
     // Reverb
-    if (metaAState == LOW && metaBState == HIGH)                                                    // If Meta B key is held and the middle button is pressed
+    if (metaKeyState == HIGH)                                                                                   // If meta key is held and the modulation button is pressed
     {
-        if (controlMiddleState == HIGH && previousControlMiddleState == LOW && reverbState == LOW)  // If reverb is disabled
+        if (modulationState == HIGH && previousModulationState == LOW && reverbState[midiChannel] == LOW)       // If reverb is currently disabled
         {
-            previousControlMiddleState = HIGH;                                                      // Lock input
-            for (int midiChannel = 0; midiChannel < 4; midiChannel++)                               // For MIDI channels 0-3 (left, right, left layer, right layer)
-            {
-                controlChange(midiChannel, 91, 127);                                                // Enable Reverb (MIDI CC #91) - 7 bit value
-            }
-            reverbState = HIGH;                                                                     // Set reverb to enabled
+            previousModulationState = HIGH;                                                                     // Lock input until released
+            controlChange(midiChannel, 91, 79);                                                                 // Enable Reverb (MIDI CC #91) - 7 bit value
+            reverbState[midiChannel] = HIGH;                                                                    // Set reverb state to enabled
+            // LCD Update Reverb Status
+            lcd.setCursor(5,1);
+            lcd.print("1");
         }
-        if (controlMiddleState == HIGH && previousControlMiddleState == LOW && reverbState == HIGH) // If reverb is enabled
+        if (modulationState == HIGH && previousModulationState == LOW && reverbState[midiChannel] == HIGH)      // If reverb is currently enabled
         {
-            previousControlMiddleState = HIGH;                                                      // Lock input
-            for (int midiChannel = 0; midiChannel < 4; midiChannel++)                               // For MIDI channels 0-3 (left, right, left layer, right layer)
-            {
-                controlChange(midiChannel, 91, 0);                                                  // Disable Reverb (MIDI CC #91) - 7 bit value
-            }
-            reverbState = LOW;                                                                      // Set reverb to disabled
+            previousModulationState = HIGH;                                                                     // Lock input until released
+            controlChange(midiChannel, 91, 0);                                                                  // Disable Reverb (MIDI CC #91) - 7 bit value
+            reverbState[midiChannel] = LOW;                                                                     // Set reverb state to disabled
+            // LCD Update Reverb Status
+            lcd.setCursor(5,1);
+            lcd.print("0");
         }
     }
 }
@@ -1090,702 +872,1424 @@ void runMidiCC()
 void runPitchBend()
 {
     // Pitch Bend
-    if (metaAState == LOW && metaBState == LOW)                                                     // If no meta keys are held, and the up or down buttons are pressed
+    if (metaKeyState == LOW)                                                                                                        // If the meta key is not held
     {
-        if (controlUpState == HIGH && pitchOffset < pitchStep)                                      // Stay below max values of 16363 (whole step) or 12267 (half step)
+        // Pitch bend up
+        if (pitchUpState == HIGH && pitchOffset < 8192)                                                                             // If button is pressed - Stay inside max values of 8192 (whole step) or 4096 (half step)
         {
-            previousControlUpState = HIGH;                                                          // Lock input
-            pitchOffset = pitchOffset + pitchSpeed;                                                 // Increment the pitchOffset by the amount of pitchSpeed for this program loop
-            // MIDI channels 2-3 only (right main, right layer)
-            pitchBendChange(rightDeckMidiChannel, ((referencePitch - 1) + constrain(pitchOffset, 0, pitchStep)) & 0x7F, ((referencePitch - 1) + constrain(pitchOffset, 0, pitchStep)) >> 7);        // Send a pitchBendChange event with our 14 bit value broken into two 7 bit bytes for the looper
-            pitchBendChange(rightDeckLayerMidiChannel, ((referencePitch - 1) + constrain(pitchOffset, 0, pitchStep)) & 0x7F, ((referencePitch - 1) + constrain(pitchOffset, 0, pitchStep)) >> 7);   // Send a pitchBendChange event with our 14 bit value broken into two 7 bit bytes for the looper
+            pitchOffset = pitchOffset + pitchSpeed;                                                                                 // Increment the pitchOffset by the amount of pitchSpeed for this program loop
+            pitchBendChange(midiChannel, ((referencePitch - 1) + pitchOffset) & 0x7F, ((referencePitch - 1) + pitchOffset) >> 7);   // Send a pitchBendChange event with our 14 bit value broken into two 7 bit bytes for the looper
         }
-        if (controlUpState == LOW && previousControlUpState == HIGH)                                // If the button is released
+        if (pitchUpState == LOW && pitchDownState == LOW && pitchOffset > 0)                                                        // If the button is released and not currently at neutral
         {
-            pitchOffset = 0;                                                                        // Reset pitchOffset to default
-            // MIDI channels 2-3 only (right main, right layer)
-            pitchBendChange(rightDeckMidiChannel, referencePitch & 0x7F, referencePitch >> 7);      // Reset pitch bend to reference level (8192)
-            pitchBendChange(rightDeckLayerMidiChannel, referencePitch & 0x7F, referencePitch >> 7); // Reset pitch bend to reference level (8192)
+            pitchOffset = pitchOffset - pitchSpeed;                                                                                 // Decrement the pitchOffset by the amount of pitchSpeed for this program loop
+            pitchBendChange(midiChannel, ((referencePitch - 1) + pitchOffset) & 0x7F, ((referencePitch - 1) + pitchOffset) >> 7);   // Send a pitchBendChange event with our 14 bit value broken into two 7 bit bytes for the looper
         }
-        if (controlDownState == HIGH && pitchOffset < pitchStep)                                    // Stay below max values of 16363 (whole step) or 12267 (half step)
+        // Pitch bend down
+        if (pitchDownState == HIGH && pitchOffset > -8192)                                                                          // If button is pressed - Stay inside max values of -8192 (whole step) or -4096 (half step)
         {
-            previousControlDownState = HIGH;                                                        // Lock input
-            pitchOffset = pitchOffset + pitchSpeed;                                                 // Increment the pitchOffset by the amount of pitchSpeed for this program loop
-            // MIDI channels 2-3 only (right main, right layer)
-            pitchBendChange(rightDeckMidiChannel, (referencePitch - constrain(pitchOffset, 0, pitchStep)) & 0x7F, (referencePitch - constrain(pitchOffset, 0, pitchStep)) >> 7);        // Send a pitchBendChange event with our 14 bit value broken into two 7 bit bytes for the looper
-            pitchBendChange(rightDeckLayerMidiChannel, (referencePitch - constrain(pitchOffset, 0, pitchStep)) & 0x7F, (referencePitch - constrain(pitchOffset, 0, pitchStep)) >> 7);   // Send a pitchBendChange event with our 14 bit value broken into two 7 bit bytes for the looper
+            pitchOffset = pitchOffset - pitchSpeed;                                                                                 // Decrement the pitchOffset by the amount of pitchSpeed for this program loop
+            pitchBendChange(midiChannel, (referencePitch + pitchOffset) & 0x7F, (referencePitch + pitchOffset) >> 7);               // Send a pitchBendChange event with our 14 bit value broken into two 7 bit bytes for the looper
         }
-        if (controlDownState == LOW && previousControlDownState == HIGH)                            // If the button is released
+        if (pitchDownState == LOW && pitchUpState == LOW && pitchOffset < 0)                                                        // If the button is released and not currently at neutral
         {
-            pitchOffset = 0;                                                                        // Reset pitchOffset to default
-            // MIDI channels 2-3 only (right main, right layer)
-            pitchBendChange(rightDeckMidiChannel, referencePitch & 0x7F, referencePitch >> 7);      // Reset pitch bend to reference level (8192)
-            pitchBendChange(rightDeckLayerMidiChannel, referencePitch & 0x7F, referencePitch >> 7); // Reset pitch bend to reference level (8192)
-        }
-    }
-    if (metaAState == HIGH && metaBState == HIGH)                                                   // If both meta keys are held
-    {
-        // Half-step/Whole-Step Pitch Bend Toggle
-        if (controlUpState == HIGH && previousControlUpState == LOW && pitchStep == 8191)           // If control up is pressed and the value is 8191 "whole-step" (default)
-        {
-            previousControlUpState = HIGH;                                                          // Lock input
-            pitchStep = 4095;                                                                       // Set the value to half step
-        }
-        if (controlUpState == HIGH && previousControlUpState == LOW && pitchStep == 4095)           // If control up is pressed and the value is 4095 "half-step"
-        {
-            previousControlUpState = HIGH;                                                          // Lock input
-            pitchStep = 8191;                                                                       // Set the value to whole step
-            // referencePitch = 8192;                                                               // Needed for whole instrument tuning adjustment to keep within bounds (currently not implemented to cut down on complexity)
-        } 
-        // Speed Adjustment
-        if (controlDownState == HIGH && previousControlDownState == LOW && pitchSpeed == 500)       // If pitch bend speed is 500 "slow" (default)
-        {
-            previousControlDownState = HIGH;                                                        // Lock input
-            pitchSpeed = 1500;                                                                      // Set pitch bend speed to fast
-        }
-        if (controlDownState == HIGH && previousControlDownState == LOW && pitchSpeed == 1500)      // If pitch bend speed is 1500 "fast"
-        {
-            previousControlDownState = HIGH;                                                        // Lock input
-            pitchSpeed = 500;                                                                       // Set pitch bend speed to slow
+            pitchOffset = pitchOffset + pitchSpeed;                                                                                 // Increment the pitchOffset by the amount of pitchSpeed for this program loop
+            pitchBendChange(midiChannel, (referencePitch + pitchOffset) & 0x7F, (referencePitch + pitchOffset) >> 7);               // Send a pitchBendChange event with our 14 bit value broken into two 7 bit bytes for the looper
         }
     }
 }
 
 void runOctave()
 {
-    // Normal note buttons
-    if (metaAState == HIGH && metaBState == LOW)                                                    // If Meta A key is held (main decks only)
+    if (metaKeyState == LOW)                                                                        // If the meta key is not held
     {
-        if (controlUpState == HIGH && previousControlUpState == LOW && octave < 12)                 // Keep octave in bounds (highest and lowest keys overflow 7 bit range (0-127) otherwise)
+        if (octaveUpState == HIGH && previousOctaveUpState == LOW && octave < 12)                   // Highest current Wicki-Hayden layout pitch is 94 - Keep pitch in bounds of 7 bit value range (0-127)
         {
+            previousOctaveUpState = HIGH;                                                           // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing octave modifier
+            }
+            for (int i = 10; i < deck2ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck2ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing octave modifier
+            }
+            playNotes();
             octave = octave + 12;                                                                   // Increment octave modifier
-            previousControlUpState = HIGH;                                                          // Lock input
+            // LCD Update Octave Info
+            if (octave ==  0) { lcd.setCursor(14,1); lcd.print(" 0"); }
+            if (octave == 12) { lcd.setCursor(14,1); lcd.write(0); lcd.print("1"); }
+            if (octave == 24) { lcd.setCursor(14,1); lcd.write(0); lcd.print("2"); }
+            if (octave == -12) { lcd.setCursor(14,1); lcd.write(1);lcd.print("1"); }
+            if (octave == -24) { lcd.setCursor(14,1); lcd.write(1);lcd.print("2"); }
         }
-        if (controlDownState == HIGH && previousControlDownState == LOW && octave > -11)            // Keep octave in bounds (highest and lowest keys overflow 7 bit range (0-127) otherwise)
+        if (octaveDownState == HIGH && previousOctaveDownState == LOW && octave > -11)              // Lowest current Wicki-Hayden layout pitch is 30 - Keep pitch in bounds of 7 bit value range (0-127)
         {
+            previousOctaveDownState = HIGH;                                                         // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing octave modifier
+            }
+            for (int i = 10; i < deck2ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck2ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing octave modifier
+            }
+            playNotes();
             octave = octave - 12;                                                                   // Decrement octave modifier
-            previousControlDownState = HIGH;                                                        // Lock input
+            // LCD Update Octave Info
+            if (octave ==  0) { lcd.setCursor(14,1); lcd.print(" 0"); }
+            if (octave == 12) { lcd.setCursor(14,1); lcd.write(0); lcd.print("1"); }
+            if (octave == 24) { lcd.setCursor(14,1); lcd.write(0); lcd.print("2"); }
+            if (octave == -12) { lcd.setCursor(14,1); lcd.write(1);lcd.print("1"); }
+            if (octave == -24) { lcd.setCursor(14,1); lcd.write(1);lcd.print("2"); }
+        }
+        if (octaveUpState == HIGH && octaveDownState == HIGH && octave != 0)                        // If both keys are pressed simultaneously and octave is not default
+        {
+            for (int i = 10; i < deck1ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing octave modifier
+            }
+            for (int i = 10; i < deck2ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck2ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing octave modifier
+            }
+            playNotes();
+            octave = 0;                                                                             // Reset octave modifier to 0
+            // LCD Update Octave Info
+            if (octave ==  0) { lcd.setCursor(14,1); lcd.print(" 0"); }
+            if (octave == 12) { lcd.setCursor(14,1); lcd.write(0); lcd.print("1"); }
+            if (octave == 24) { lcd.setCursor(14,1); lcd.write(0); lcd.print("2"); }
+            if (octave == -12) { lcd.setCursor(14,1); lcd.write(1);lcd.print("1"); }
+            if (octave == -24) { lcd.setCursor(14,1); lcd.write(1);lcd.print("2"); }
+        }
+    }
+}
+
+void runChannelSelect()
+{
+    if (metaKeyState == LOW)                                                                        // If the meta key is not held
+    {
+        if (channelUpState == HIGH && previousChannelUpState == LOW && midiChannel < 8)             // Keep channel in bounds (0-15) and skip drums channel (9)
+        {
+            previousChannelUpState = HIGH;                                                          // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing channel
+            }
+            playNotes();
+            midiChannel = midiChannel + 1;                                                          // Increment channel
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)           // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)           // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                                       // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                                       // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                                // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+
+        }
+        if (channelUpState == HIGH && previousChannelUpState == LOW && midiChannel == 8)            // Keep channel in bounds (0-15) and skip drums channel (9)
+        {
+            previousChannelUpState = HIGH;                                                          // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing channel
+            }
+            playNotes();
+            midiChannel = midiChannel + 2;                                                          // Increment channel
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)           // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)           // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                                       // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                                       // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                                // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+
+        }
+        if (channelUpState == HIGH && previousChannelUpState == LOW && midiChannel > 9 && midiChannel < 15) // Keep channel in bounds (0-15) and skip drums channel (9)
+        {
+            previousChannelUpState = HIGH;                                                                  // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                         // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                                       // Pop any active notes to prevent hangs when abruptly changing channel
+            }
+            playNotes();
+            midiChannel = midiChannel + 1;                                                                  // Increment channel
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)           // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)           // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                                       // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                                       // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                                // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+
+        }
+
+        if (channelDownState == HIGH && previousChannelDownState == LOW && midiChannel > 0 && midiChannel < 9)  // Keep channel in bounds (0-15) and skip drums channel (9)
+        {
+            previousChannelDownState = HIGH;                                                                    // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                             // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                                           // Pop any active notes to prevent hangs when abruptly changing channel
+            }
+            playNotes();
+            midiChannel = midiChannel - 1;                                                                      // Decrement channel
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)           // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)           // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                                       // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                                       // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                                // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+
+        }
+        if (channelDownState == HIGH && previousChannelDownState == LOW && midiChannel == 10)       // Keep channel in bounds (0-15) and skip drums channel (9)
+        {
+            previousChannelDownState = HIGH;                                                        // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing channel
+            }
+            playNotes();
+            midiChannel = midiChannel - 2;                                                          // Decrement channel
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)           // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)           // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                                       // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                                       // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                                // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+
+        }
+        if (channelDownState == HIGH && previousChannelDownState == LOW && midiChannel > 10)        // Keep channel in bounds (0-15) and skip drums channel (9)
+        {
+            previousChannelDownState = HIGH;                                                        // Lock input until released
+            for (int i = 10; i < deck1ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing channel
+            }
+            playNotes();
+            midiChannel = midiChannel - 1;                                                          // Decrement channel
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)           // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)           // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                                       // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                                       // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                                // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+
+        }
+
+        if (channelUpState == HIGH && channelDownState == HIGH && midiChannel != 0)                 // If both keys are pressed simultaneously and channel is not default 0
+        {
+            for (int i = 10; i < deck1ElementCount; i++)                                                 // For all note buttons in the deck
+            {
+                deck1ActiveButtons[i] = 0;                                                               // Pop any active notes to prevent hangs when abruptly changing channel
+            }
+            playNotes();
+            midiChannel = 0;                                                                        // Reset channel to 0
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)           // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)           // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                                       // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                                       // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                                // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+
         }
     }
 }
 
 void runDrumsMode()
 {
-    if (metaAState == LOW && metaBState == HIGH)                                                            // If Meta B key is held and control up is pressed
+    if (metaKeyState == HIGH)                                                                                                   // If meta key is held and pitch down is pressed
     {
-        if (controlUpState == HIGH && previousControlUpState == LOW && leftDeckDrumsModeEnabled == LOW)     // If drums mode is currently disabled
+        if (pitchDownState == HIGH && previousPitchDownState == LOW && drumsModeEnabled == LOW && sustainModeEnabled == LOW)    // If drums mode is currently disabled
         {
-            previousControlUpState = HIGH;                                                                  // Lock input state
-            // leftDeckLayerNotesEnabled = LOW;                                                                // Make sure that the layer mode is disabled
-            leftDeckDrumsModeEnabled = HIGH;                                                                // Enable drums mode
-            leftDeckMidiChannel = drumsChannel;                                                             // Set the left deck channel to drums (MIDI channel 9)
-            programChange(drumsChannel, midiProgram[drumsChannel]);                                         // Change the program to what was saved for this channel
+            previousPitchDownState = HIGH;                                                                                      // Lock input until released
+            drumsModeEnabled = HIGH;                                                                                            // Enable drums mode
+            midiChannel = 9;                                                                                                    // Set the current channel to drums (MIDI channel 9)
+            programChange(midiChannel, midiProgram[midiChannel]);                                                               // Change the program to what was saved for this channel
+            // LCD Update Current Mode Selection
+            lcd.setCursor(3,1);
+            lcd.print("D");
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            lcd.print("10");
+
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)           // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)           // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                                       // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                                       // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                                // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
         }
-        if (controlUpState == HIGH && previousControlUpState == LOW && leftDeckDrumsModeEnabled == HIGH)    // If drums mode is currently enabled
+
+        if (pitchDownState == HIGH && previousPitchDownState == LOW && drumsModeEnabled == HIGH)    // If drums mode is currently enabled
         {
-            previousControlUpState = HIGH;                                                                  // Lock input state
-            leftDeckDrumsModeEnabled = LOW;                                                                 // Disable drums mode
-            leftDeckMidiChannel = leftDeckDefaultMidiChannel;                                               // Set the left deck channel back to default (MIDI channel 0)
-            programChange(leftDeckMidiChannel, midiProgram[leftDeckMidiChannel]);                           // Change the program back to what was saved for this channel
+            previousPitchDownState = HIGH;                                                          // Lock input until released
+            drumsModeEnabled = LOW;                                                                 // Disable drums mode
+            midiChannel = 0;                                                                        // Set the current channel back to default (MIDI channel 0)
+            programChange(midiChannel, midiProgram[midiChannel]);                                   // Change the program back to what was saved for this channel
+            // LCD Update Current Mode Selection
+            lcd.setCursor(3,1);
+            lcd.print("N");
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            lcd.print("01");
+
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)           // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)           // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                                       // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                                       // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                                // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
         }
     }
 }
 
-void runLegatoMode()
+void runSustainMode()
 {
-    if (metaAState == LOW && metaBState == HIGH)                                                                // If the Meta B key is held and control down is pressed
+    if (metaKeyState == HIGH)                                                                                                   // If meta key is held and pitch up is pressed
     {
-        if (controlDownState == HIGH && previousControlDownState == LOW && leftDeckLegatoModeEnabled == LOW)    // If legato mode is currently disabled
+        if (pitchUpState == HIGH && previousPitchUpState == LOW && sustainModeEnabled == LOW && drumsModeEnabled == LOW)        // If sustain mode is currently disabled
         {
-            previousControlDownState = HIGH;                                                                    // Lock input state
-            leftDeckLegatoModeEnabled = HIGH;                                                                   // Enable legato mode (functionality is in the playNotes function)
+            previousPitchUpState = HIGH;                                                                                        // Lock input until released
+            sustainModeEnabled = HIGH;                                                                                          // Enable sustain mode
+            // LCD Update Current Mode Selection
+            lcd.setCursor(3,1);
+            lcd.print("S");
         }
-        if (controlDownState == HIGH && previousControlDownState == LOW && leftDeckLegatoModeEnabled == HIGH)   // If legato mode is currently enabled
+        if (pitchUpState == HIGH && previousPitchUpState == LOW && sustainModeEnabled == HIGH)                                  // If sustain mode is currently enabled
         {
-            previousControlDownState = HIGH;                                                                    // Lock input state
-            leftDeckLegatoModeEnabled = LOW;                                                                    // Disable legato mode
-            controlChange(leftDeckMidiChannel, 64, 0);                                                          // Send a sustain off command (MIDI CC #64)  - 0-63 OFF / 64-127 ON
-            controlChange(leftDeckLayerMidiChannel, 64, 0);                                                     // Send a sustain off command (MIDI CC #64)  - 0-63 OFF / 64-127 ON
+            controlChange(midiChannel, 64, 0);                                                                                  // Send a sustain off command (MIDI CC #64)  - 0-63 OFF / 64-127 ON
+            previousPitchUpState = HIGH;                                                                                        // Lock input until released
+            sustainModeEnabled = LOW;                                                                                           // Disable sustain mode
+            // LCD Update Current Mode Selection
+            lcd.setCursor(3,1);
+            lcd.print("N");
         }
-    }
-}
-
-void runMetronome()
-{
-    if ((currentTime - previousMetronomeClickTime) > metronomeSpeed && metronomeSpeed >= 200)                   // Allow for small deadzone when parked at 0 (full range 195-1000)
-    {                                                                                                           // 200ms = 300bpm - 1000ms = 60bpm
-        noteOn(drumsChannel, 37, multiVelocity);                                                                // Note #37 = Rim Shot
-        noteOff(drumsChannel, 37, 0);                                                                           // Send closing noteOff
-        previousMetronomeClickTime = currentTime;                                                               // Update "previous" variable for comparison on next loop
     }
 }
 
 void runControllerReset()
 {
-    if (metaAState == HIGH && metaBState == HIGH && controlMiddleState == HIGH && previousControlMiddleState == LOW)    // If both meta keys and control middle are pressed
+    if (metaKeyState == HIGH && channelDownState == HIGH && octaveUpState == HIGH)          // If the 3 key reset command is pressed
     {
-        previousControlMiddleState = HIGH;                                              // Lock input
-        memset(activeButtonsLeft, 0, sizeof(activeButtonsLeft));                        // Pop any active note buttons
-        memset(previousActiveButtonsLeft, 0, sizeof(previousActiveButtonsLeft));        // Pop any active note buttons
-        memset(activeButtonsRight, 0, sizeof(activeButtonsRight));                      // Pop any active note buttons
-        memset(previousActiveButtonsRight, 0, sizeof(previousActiveButtonsRight));      // Pop any active note buttons
-        for (int midiChannel = 0; midiChannel <= 15; midiChannel++)                     // For MIDI channels 0 through 15
+        for (int myChannel = 0; myChannel <= 15; myChannel++)                               // For MIDI channels 0 through 15
         {
-            controlChange(midiChannel, 120, 0);                                         // All Sound Off (MIDI CC #120) - Mute all currently sounding notes
-            programChange(midiChannel, 0);                                              // Reset program on all channels to 0
-            controlChange(midiChannel, 91, 0);                                          // Disable reverb on all channels (MIDI CC #91)
-            controlChange(midiChannel, 93, 0);                                          // Disable chorus on all channels (MIDI CC #93)
-            controlChange(midiChannel, 64, 0);                                          // Disable sustain on all channels (MIDI CC #64)
-            controlChange(midiChannel, 11, 95);                                         // Set default expression level (MIDI CC #11)
-            midiProgram[midiChannel] = 0;                                               // Reset saved program on all channels to 0
+            controlChange(myChannel, 120, 0);                                               // All Sound Off (MIDI CC #120) - Mute all currently sounding notes
+            programChange(myChannel, 0);                                                    // Reset program on all channels to 0
+            controlChange(myChannel, 91, 0);                                                // Disable reverb on all channels (MIDI CC #91)
+            controlChange(myChannel, 64, 0);                                                // Disable sustain on all channels (MIDI CC #64)
         }
-        leftDeckMidiChannel = 0;                                                        // Reset left deck to default channel 0
-        octave = 0;                                                                     // Reset octave modifier to 0
-        chorusState = LOW;                                                              // Disable chorus function
-        reverbState = LOW;                                                              // Disable reverb function
-        pitchOffset = 0;                                                                // Reset pitch offset to 0
-        pitchSpeed = 500;                                                               // Reset pitch speed modifier to default 500
-        pitchStep = 8191;                                                               // Reset pitch step modifier to default 8191 (whole-step bend)
-        leftDeckLayerNotesEnabled   = LOW;                                              // Disable left deck layer mode
-        rightDeckLayerNotesEnabled  = LOW;                                              // Disable right deck layer mode
-        leftDeckDrumsModeEnabled    = LOW;                                              // Disable left deck drums mode
-        leftDeckLegatoModeEnabled   = LOW;                                              // Disable left deck legato/drone mode
-        loopDrumsInMemory           = LOW;                                              // Clear drums in memory flag
-        loopResetClock = currentTime;                                                   // Trigger a looper reset (will occur in the looper function)
-        delay(250);                                                                     // Delay to give the process some weight
-        noteOn(0, 60, 95);                                                              // Send a notification jingle to alert the user that the reset process is complete
-        delay(100);
-        noteOn(0, 64, 95);
-        delay(100);
-        noteOn(0, 67, 95);
-        delay(100);
-        noteOn(0, 72, 95);
-        delay(250);
-        noteOff(0, 60, 0);
-        noteOff(0, 64, 0);
-        noteOff(0, 67, 0);
-        noteOff(0, 72, 0);
-    }
-}
-
-void runLoopPedal()
-{
-    // The maximum number of indexes for a track has been reached.  Force a reset to prevent an overflow.
-    for (int trackNumber = 0; trackNumber < maxTracks; trackNumber++)
-    {
-        if (loopTrackHighestIndex[trackNumber] >= maxIndexes)
-        {
-            loopResetClock = currentTime;                                               // Set the loopResetClock to currentTime to trigger a reset
-            loopInMemory = HIGH;                                                        // Prevent a regular controller reset from triggering loop reset unnecessarily
-            noteOn(9, 71, 95);                                                          // Play alert sound (MIDI Note #71 - Short Whistle)
-            noteOff(9, 81, 0);
-            delay(50);
-            noteOn(9, 71, 95);
-            noteOff(9, 81, 0);
-            delay(50);
-            noteOn(9, 71, 95);
-            noteOff(9, 81, 0);
-            delay(100);
-        }
-    }
-
-    // A button reset, or overflow reset has been detected
-    if (loopResetClock <= currentTime && loopInMemory == HIGH)                                              // loopInMemory check to prevent a controler reset from triggering this unnecessarily
-    {
-
-            // If looper was interrupted mid-playback, clean up any potential unclosed noteOn/noteOff events
-            for (int myTrack = 0; myTrack < maxTracks; myTrack++)                                           // For all tracks allocated to the looper
-            {
-                if (loopTrackActive[myTrack] == HIGH)                                                       // If the channel is marked as active (HIGH)
-                {
-                    for (int myIndex = 0 ; myIndex < hangingNotesIndex[myTrack]; myIndex++)                 // For each noteOn played thus far in the loop
-                    {
-                        if (hangingNotes[myTrack][myIndex] != 254)                                          // If note value isn't 254 (meaning it's an actual note)
-                        {
-                            noteOff(loopTrackOutputChannel[myTrack], hangingNotes[myTrack][myIndex], 0);    // Send a matching noteOff for every noteOn played thus far to make sure everything was closed properly
-                        }
-                    }
-                }
-                hangingNotesIndex[myTrack] = 0;                                                             // Reset the hanging notes index counter
-            }
-
-        midiPacketIndex = 0;                                                            // A running counter of all MIDI packets sent to the bus
-        previousMidiPacketIndex = 0;                                                    // The previous packet index value for comparison
-        loopRecordingEnabled = LOW;                                                     // The recording state of the looper on/off
-        loopPlaybackEnabled = LOW;                                                      // The playback state of the looper on/off
-        loopInMemory = LOW;                                                             // Flag indicating if a loop is currently saved in memory or not
-        loopDrumsInMemory = LOW;                                                        // Flag indicating if a drums track is currently saved in memory or not
-        unsigned long loopStartTime = 0;                                                // The global loop start time.  This number is subtracted from subsequent saved event times to record relative event times in the loop.  Resets to 0 on every playback loop.
-        unsigned long loopDuration = 0;                                                 // The global loop duration.  When currentTime is equal to loopStartTime plus this number, the loopStartTime and indexes are reset to 0 for another playthrough.
-        unsigned long loopResetClock = 4294967295;                                      // When the loop button is held, this value is set to currentTime + 1500.  When currentTime equals this number, the looper is reset. Default is max value of an unsigned long (49.7 days of milliseconds).
-        currentLoopIteration = LOW;                                                     // Variable to store the currently recording loop iteration.  When this is incremented, a new loop is initialized.
-        previousLoopIteration = LOW;                                                    // Previous loop iteration for comparison
-        memset(loopTrackActive, 0, sizeof(loopTrackActive));                            // Flag indicating if this loop channel is in use
-        memset(loopTrackIndex, 0, sizeof(loopTrackIndex));                              // The current index position of the arrays assigned to this loop track
-        memset(loopTrackHighestIndex, 0, sizeof(loopTrackHighestIndex));                // The highest track index reached thus far in the current loop track.  Needed for overflow detection, and for limiting unnecessary array searches when scanning a full array.
-        memset(loopTrackEventType, 0, sizeof(loopTrackEventType));                      // Variable containing the event type of the packet saved to this looper track (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-        memset(loopTrackChannel, 0, sizeof(loopTrackChannel));                          // Variable containing the channel number of the packet saved to this looper track (0-15)
-        memset(loopTrackByte3, 0, sizeof(loopTrackByte3));                              // Variable containing the note number, control change number, or the pitch bend low byte of the packet saved to this looper track (0-127)
-        memset(loopTrackByte4, 0, sizeof(loopTrackByte4));                              // Variable containing the velocity value, control change value, or the pitch bend high byte of the packet saved to this looper track (0-127)
-        memset(loopTrackEventTime, 0, sizeof(loopTrackEventTime));                      // Variable containing the event time of this index position in the looper track relative to the loopStartTime
-        memset(loopTrackOutputChannel, 0, sizeof(loopTrackOutputChannel));              // The output MIDI channel assigned to this looper track (4-15)
-        memset(activeButtonsLeft, 0, sizeof(activeButtonsLeft));                        // Pop any active note buttons
-        memset(previousActiveButtonsLeft, 0, sizeof(previousActiveButtonsLeft));        // Pop any active note buttons
-        memset(activeButtonsRight, 0, sizeof(activeButtonsRight));                      // Pop any active note buttons
-        memset(previousActiveButtonsRight, 0, sizeof(previousActiveButtonsRight));      // Pop any active note buttons
-        noteOn(9, 65, 95);                                                              // Play an alert sound (GM Percussion Note #65 High Timbale)
-        noteOff(9, 65, 0);
-        delay(75);
-        noteOn(9, 66, 95);                                                              // Play an alert sound (GM Percussion Note #66 Low Timbale)
-        noteOff(9, 66, 0);
-    }
-
-    // The looper button is pressed and there is no loop in memory.  Enable recording mode and wait for note input.
-    if (loopActivationState == HIGH && previousLoopActivationState == LOW && previousLoopResetState == LOW && loopRecordingEnabled == LOW && loopInMemory == LOW) // previousLoopResetState prevents looper from immediately activating again after a reset since the key is still being held
-    {
-        previousLoopActivationState = HIGH;                                                                 // Lock the input button
-        currentLoopIteration = 0;                                                                           // Initialize the loop iteration counter
-        previousLoopIteration = 0;                                                                          // Initialize the previous loop iteration counter
-        midiPacketIndex = 0;                                                                                // Initialize the MIDI packet index counter
-        previousMidiPacketIndex = 0;                                                                        // Initialize the MIDI packet previous index counter
-        for (int myTrack = 0; myTrack < maxTracks; myTrack++)                                               // For all tracks in the looper
-        {
-            loopTrackActive[myTrack] = LOW;                                                                 // Mark the tracks open/unused
-        }
-        noteOn(9, 66, 95);                                                                                  // Play an alert sound (GM Percussion Note #66 Low Timbale)
-        noteOff(9, 66, 0);
-        delay(75);
-        noteOn(9, 65, 95);                                                                                  // Play an alert sound (GM Percussion Note #65 High Timbale)
-        noteOff(9, 65, 0);
-        loopRecordingEnabled = HIGH;                                                                        // Set loop recording to enabled
-    }
-
-    // The looper button has been pressed again before any note buttons were input.
-    if (loopActivationState == HIGH && previousLoopActivationState == LOW && loopRecordingEnabled == HIGH && loopInMemory == LOW)
-    {
-        previousLoopActivationState = HIGH;                                                                 // Lock the input button
-        loopRecordingEnabled = LOW;                                                                         // Set loop recording to disabled
-        noteOn(9, 65, 95);                                                                                  // Play an alert sound (GM Percussion Note #65 High Timbale)
-        noteOff(9, 65, 0);
-        delay(75);
-        noteOn(9, 66, 95);                                                                                  // Play an alert sound (GM Percussion Note #66 Low Timbale)
-        noteOff(9, 66, 0);
-    }
-
-    // The first note button has been input, and recording mode is active.
-    if (loopRecordingEnabled == HIGH && loopInMemory == LOW && (leftDeckActive == HIGH || rightDeckActive == HIGH))
-    {
-        loopStartTime = currentTime;                                                                        // Set loop start time to the current time
-        loopInMemory = HIGH;                                                                                // Flag that there is a loop in memory
-        currentLoopIteration = currentLoopIteration + 1;                                                    // Increment the the loop iteration counter
-    }
-
-    // A new loop iteration is detected.
-    if (loopInMemory == HIGH && currentLoopIteration > previousLoopIteration)
-    {
-        // Loop track overflow detection
-        byte loopTrackCounter = 0;                                                                          // Keep track of how many loop tracks are active so we can stop recording before an overflow
-        for (int myTrack = 0; myTrack < maxTracks; myTrack++)                                               // For all tracks allocated to the looper
-        {
-            if (loopTrackActive[myTrack] == HIGH)                                                           // If the loop track is active
-            {
-                loopTrackCounter = loopTrackCounter + 1;                                                    // Increment the counter
-            }
-        }
-        if (loopTrackCounter > maxTracks - 5)                                                               // If there isn't enough room for 4 potential new tracks (left, right, left layer, right layer)
-        {
-            loopRecordingEnabled = LOW;                                                                     // Disable recording
-            goto looperFull;                                                                                // Skip to the end of this section without initializing more tracks
-        }
-
-        // Initialize new loop iteration
-        noteOn(9, 75, 127);                                                                                 // Play quick alert sound on new loop start (GM Percussion Note #75 Claves)
-        noteOff(9, 75, 0);
-        if (leftDeckDrumsModeEnabled == HIGH && loopTrackActive[11] == LOW)                                 // If drums mode is enabled, and the track isn't already in use
-        {
-            loopTrackActive[11] = HIGH;                                                                     // Mark the current track as in use
-            loopTrackOutputChannel[11] = loopChannelAssignment[11];                                         // Assign this loop track to the appropriate output channel
-            loopTrackIndex[11] = 0;                                                                         // Set the track index to 0
-            loopTrackHighestIndex[11] = 0;                                                                  // Set the highest track index to 0
-            programChange(loopTrackOutputChannel[11], midiProgram[leftDeckMidiChannel]);                    // Copy the currently selected MIDI program to the new track channel
-            if (chorusState == HIGH)                                                                        // Copy chorus setting to loop track channel if enabled
-            {
-                controlChange(loopTrackOutputChannel[11], 93, 127);
-            }
-            else
-            {
-                controlChange(loopTrackOutputChannel[11], 93, 0);
-            }
-            if (reverbState == HIGH)                                                                        // Copy reverb setting to loop track channel if enabled
-            {
-                controlChange(loopTrackOutputChannel[11], 91, 127);
-            }
-            else
-            {
-                controlChange(loopTrackOutputChannel[11], 91, 0);
-            }
-            pitchBendChange(loopTrackOutputChannel[11], referencePitch & 0x7F, referencePitch >> 7);        // Reset pitch bend to reference level
-            controlChange(loopTrackOutputChannel[11], 1, 0);                                                // Reset modulation
-        }
-        if (leftDeckDrumsModeEnabled == LOW)                                                                // If drums mode is disabled
-        {
-            // Left Deck
-            for (int myTrack = 0; myTrack < maxTracks - 1; myTrack++)                                       // For all tracks allocated to the looper (minus the drum track)
-            {
-                if (loopTrackActive[myTrack] == LOW)                                                        // If this track is LOW meaning unused
-                {
-                    loopTrackActive[myTrack] = HIGH;                                                        // Mark the current track as in use
-                    leftDeckInputTrack = myTrack;
-                    loopTrackOutputChannel[myTrack] = loopChannelAssignment[myTrack];                       // Assign this looper track to the appropriate output channel
-                    loopTrackIndex[myTrack] = 0;                                                            // Set the track index to 0
-                    loopTrackHighestIndex[myTrack] = 0;                                                     // Set the highest track index to 0
-                    programChange(loopTrackOutputChannel[myTrack], midiProgram[leftDeckMidiChannel]);       // Copy the currently selected MIDI program to the new track channel
-                    if (chorusState == HIGH)                                                                // Copy chorus setting to loop track channel if enabled
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 93, 127);
-                    }
-                    else
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 93, 0);
-                    }
-                    if (reverbState == HIGH)                                                                // Copy reverb setting to loop track channel if enabled
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 91, 127);
-                    }
-                    else
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 91, 0);
-                    }
-                    pitchBendChange(loopTrackOutputChannel[myTrack], referencePitch & 0x7F, referencePitch >> 7);   // Reset pitch bend to reference level (8192)
-                    controlChange(loopTrackOutputChannel[myTrack], 1, 0);                                           // Reset modulation
-                    break;                                                                                          // Break out of the loop with our new track
-                }
-            }
-        }
-        // Right Deck
-        for (int myTrack = 0; myTrack < maxTracks - 1; myTrack++)                                       // For all tracks allocated to the looper (minus the drum track)
-        {
-            if (loopTrackActive[myTrack] == LOW)                                                        // If this track is LOW meaning unused
-            {
-                loopTrackActive[myTrack] = HIGH;                                                        // Mark the current track as in use
-                rightDeckInputTrack = myTrack;
-                loopTrackOutputChannel[myTrack] = loopChannelAssignment[myTrack];                       // Assign this looper track to the appropriate output channel
-                loopTrackIndex[myTrack] = 0;                                                            // Set the track index to 0
-                loopTrackHighestIndex[myTrack] = 0;                                                     // Set the highest track index to 0
-                programChange(loopTrackOutputChannel[myTrack], midiProgram[rightDeckMidiChannel]);      // Copy the currently selected MIDI program to the new track channel
-                if (chorusState == HIGH)                                                                // Copy chorus setting to loop track channel if enabled
-                {
-                    controlChange(loopTrackOutputChannel[myTrack], 93, 127);
-                }
-                else
-                {
-                    controlChange(loopTrackOutputChannel[myTrack], 93, 0);
-                }
-                if (reverbState == HIGH)                                                                // Copy reverb setting to loop track channel if enabled
-                {
-                    controlChange(loopTrackOutputChannel[myTrack], 91, 127);
-                }
-                else
-                {
-                    controlChange(loopTrackOutputChannel[myTrack], 91, 0);
-                }
-                pitchBendChange(loopTrackOutputChannel[myTrack], referencePitch & 0x7F, referencePitch >> 7);   // Reset pitch bend to reference level (8192)
-                controlChange(loopTrackOutputChannel[myTrack], 1, 0);                                           // Reset modulation
-                break;                                                                                          // Break out of the loop with our new track
-            }
-        }
-        // Left Deck Layer
-        if (leftDeckLayerNotesEnabled == HIGH)
-        {
-            for (int myTrack = 0; myTrack < maxTracks - 1; myTrack++)                                       // For all tracks allocated to the looper (minus the drum track)
-            {
-                if (loopTrackActive[myTrack] == LOW)                                                        // If this track is LOW meaning unused
-                {
-                    loopTrackActive[myTrack] = HIGH;                                                        // Mark the current track as in use
-                    leftDeckLayerInputTrack = myTrack;
-                    loopTrackOutputChannel[myTrack] = loopChannelAssignment[myTrack];                       // Assign this looper track to the appropriate output channel
-                    loopTrackIndex[myTrack] = 0;                                                            // Set the track index to 0
-                    loopTrackHighestIndex[myTrack] = 0;                                                     // Set the highest track index to 0
-                    programChange(loopTrackOutputChannel[myTrack], midiProgram[leftDeckLayerMidiChannel]);  // Copy the currently selected MIDI program to the new track channel
-                    if (chorusState == HIGH)                                                                // Copy chorus setting to loop track channel if enabled
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 93, 127);
-                    }
-                    else
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 93, 0);
-                    }
-                    if (reverbState == HIGH)                                                                // Copy reverb setting to loop track channel if enabled
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 91, 127);
-                    }
-                    else
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 91, 0);
-                    }
-                    pitchBendChange(loopTrackOutputChannel[myTrack], referencePitch & 0x7F, referencePitch >> 7);   // Reset pitch bend to reference level (8192)
-                    controlChange(loopTrackOutputChannel[myTrack], 1, 0);                                           // Reset modulation
-                    break;                                                                                          // Break out of the loop with our new track
-                }
-            }
-        }
-        // Right Deck Layer
-        if (rightDeckLayerNotesEnabled == HIGH)
-        {
-            for (int myTrack = 0; myTrack < maxTracks - 1; myTrack++)                                       // For all tracks allocated to the looper (minus the drum track)
-            {
-                if (loopTrackActive[myTrack] == LOW)                                                        // If this track is LOW meaning unused
-                {
-                    loopTrackActive[myTrack] = HIGH;                                                        // Mark the current track as in use
-                    rightDeckLayerInputTrack = myTrack;
-                    loopTrackOutputChannel[myTrack] = loopChannelAssignment[myTrack];                       // Assign this looper track to the appropriate output channel
-                    loopTrackIndex[myTrack] = 0;                                                            // Set the track index to 0
-                    loopTrackHighestIndex[myTrack] = 0;                                                     // Set the highest track index to 0
-                    programChange(loopTrackOutputChannel[myTrack], midiProgram[rightDeckLayerMidiChannel]); // Copy the currently selected MIDI program to the new track channel
-                    if (chorusState == HIGH)                                                                // Copy chorus setting to loop track channel if enabled
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 93, 127);
-                    }
-                    else
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 93, 0);
-                    }
-                    if (reverbState == HIGH)                                                                // Copy reverb setting to loop track channel if enabled
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 91, 127);
-                    }
-                    else
-                    {
-                        controlChange(loopTrackOutputChannel[myTrack], 91, 0);
-                    }
-                    pitchBendChange(loopTrackOutputChannel[myTrack], referencePitch & 0x7F, referencePitch >> 7);   // Reset pitch bend to reference level (8192)
-                    controlChange(loopTrackOutputChannel[myTrack], 1, 0);                                           // Reset modulation
-                    break;                                                                                          // Break out of the loop with our new track
-                }
-            }
-        }
-
-        // If no available looper tracks were detected above, skip to here.
-        looperFull:                                                                                                 // If no loop tracks are available for recording, continue without initializing more loops
-
-        previousLoopIteration = currentLoopIteration;                                                               // Setup is complete.  Change previousLoopIteration to match currentLoopIteration.
-    }
-
-
-    // Recording happens inside of the MIDI packet functions at the bottom of the program code.
-    // It must be called every time a note is sent, or the looper can only intercept the most recent note played in a single program loop.
-
-
-    // The looper button is pressed again and there is data in memory that is not yet in playback.  Finalize for playback.
-    if (loopActivationState == HIGH && previousLoopActivationState == LOW && loopRecordingEnabled == HIGH && loopPlaybackEnabled == LOW && loopInMemory == HIGH)
-    {
-        previousLoopActivationState = HIGH;                                             // Lock the input
-        if (loopTrackActive[11] == HIGH)
-        {
-            loopDrumsInMemory = HIGH;                                                   // Mark drums in memory to prevent overwriting
-            leftDeckDrumsModeEnabled = LOW;                                             // Disable drums mode
-            leftDeckMidiChannel = leftDeckDefaultMidiChannel;                           // Set the left deck channel back to default (MIDI channel 0)
-            programChange(leftDeckMidiChannel, midiProgram[leftDeckMidiChannel]);       // Change the program back to what was saved for this channel
-        }
-        leftDeckMidiChannel = leftDeckDefaultMidiChannel;                               // Set the left deck channel to default (MIDI channel 0)
-        programChange(leftDeckMidiChannel, midiProgram[leftDeckMidiChannel]);           // Change the program back to what was saved for this channel
-        loopPlaybackEnabled = HIGH;                                                     // Set loop playback to enabled
-        loopDuration = (currentTime - loopStartTime);                                   // Subtract current time from loop start time to find the loop duration
-        loopStartTime = currentTime;                                                    // Reset loop start time to current time in preparation for another trip through the loop
-        for (int myTrack = 0; myTrack < maxTracks; myTrack++)                           // For all tracks in the looper
-        {
-            loopTrackIndex[myTrack] = 0;                                                // Reset all track indexes to 0 in preparation for another trip through the loop
-        }
-        currentLoopIteration = currentLoopIteration + 1;                                // Iterate the loop counter to prime recording for a new loop immediately
-    }
-
-    // The looper button is pressed during a playback+recording loop.  Disable recording.
-    if (loopActivationState == HIGH && previousLoopActivationState == LOW && loopRecordingEnabled == HIGH && loopPlaybackEnabled == HIGH && loopInMemory == HIGH)
-    {
-        previousLoopActivationState = HIGH;                                             // Lock the input
-        loopRecordingEnabled = LOW;                                                     // Disable recording
-    }
-
-    // The looper button is pressed during a playback loop.  Enable recording for the next loop iteration.
-    if (loopActivationState == HIGH && previousLoopActivationState == LOW && loopRecordingEnabled == LOW && loopPlaybackEnabled == HIGH && loopInMemory == HIGH)
-    {
-        previousLoopActivationState = HIGH;                                             // Lock the input
-        loopRecordingEnabled = HIGH;                                                    // Enable recording
-    }
-
-    // Playback runs continuously until cancelled
-    if (loopPlaybackEnabled == HIGH && loopInMemory == HIGH)
-    {
-        // If loop duration is exceeded, set the loop start back to current time, and reset the index positions to 0
-        if ((loopStartTime + loopDuration) < currentTime)
-        {
-            if (loopRecordingEnabled == HIGH)
-            {
-                currentLoopIteration = currentLoopIteration + 1;
-            }
-
-            if (loopTrackActive[11] == HIGH && loopTrackHighestIndex[11] > 0)
-            {
-                loopDrumsInMemory = HIGH;                                                                   // Mark drums in memory to prevent overwriting
-                leftDeckDrumsModeEnabled = LOW;                                                             // Disable drums mode
-                leftDeckMidiChannel = leftDeckDefaultMidiChannel;                                           // Set the left deck channel back to default (MIDI channel 0)
-                programChange(leftDeckMidiChannel, midiProgram[leftDeckMidiChannel]);                       // Change the program back to what was saved for this channel
-            }
-
-            // Clean up any potential remaining noteOff events
-            for (int myTrack = 0; myTrack < maxTracks; myTrack++)                                           // For all tracks allocated to the looper
-            {
-                if (loopTrackActive[myTrack] == HIGH)                                                       // If the channel is marked as active (HIGH)
-                {
-                    for (int myIndex = 0 ; myIndex < hangingNotesIndex[myTrack]; myIndex++)                 // For each noteOn played thus far in the loop
-                    {
-                        if (hangingNotes[myTrack][myIndex] != 254)                                          // If note value isn't 254 (meaning it's an actual note)
-                        {
-                            noteOff(loopTrackOutputChannel[myTrack], hangingNotes[myTrack][myIndex], 0);    // Send a matching noteOff for every noteOn played thus far to make sure everything was closed properly
-                        }
-                    }
-                }
-                hangingNotesIndex[myTrack] = 0;                                                             // Reset the hanging notes index counter
-            }
-            loopStartTime = currentTime;                                                // Reset loop start to current time for a new trip through
-            for (int myTrack = 0; myTrack < maxTracks; myTrack++)                       // For all loop tracks
-            {
-                loopTrackIndex[myTrack] = 0;                                            // Set the index counter back to 0 for a new trip through
-                if (loopTrackHighestIndex[myTrack] == 0)                                // If the highest index is still 0 (meaning the deck wasn't played)
-                {
-                    loopTrackActive[myTrack] = LOW;                                     // Free up the track for more overdubbing
-                }
-            }
-        }
-
-        // Play back the duration of the loop on repeat
-        for (int myTrack = 0; myTrack < maxTracks; myTrack++)                                   // For all tracks in the looper
-        {
-            if (loopTrackActive[myTrack] == HIGH)                                               // If the track is marked as active (HIGH)
-            {
-                for (int myIndex = 0; myIndex < loopTrackHighestIndex[myTrack]; myIndex++)      // For all indexes up to the highest one recorded for this track
-                {
-                    if ((loopStartTime + loopTrackEventTime[myTrack][loopTrackIndex[myTrack]]) <= currentTime && loopTrackIndex[myTrack] < loopTrackHighestIndex[myTrack])  // If the pending event's recorded time is less than current time through the loop, send the packet out, and increment the index counter
-                    {
-                        if (loopTrackEventType[myTrack][loopTrackIndex[myTrack]] == 1)          // If event type is 1, send a noteOn
-                        {
-                            noteOn(loopTrackOutputChannel[myTrack], loopTrackByte3[myTrack][loopTrackIndex[myTrack]], loopTrackByte4[myTrack][loopTrackIndex[myTrack]]);    // Send saved noteOn
-                            hangingNotes[myTrack][hangingNotesIndex[myTrack]] = loopTrackByte3[myTrack][loopTrackIndex[myTrack]];                                           // Save noteOn channel and value to an array
-                            hangingNotesIndex[myTrack] = hangingNotesIndex[myTrack] + 1;                                                                                    // Increment in hanging notes check index counter
-                        }
-                        if (loopTrackEventType[myTrack][loopTrackIndex[myTrack]] == 0)          // 0, send a noteOff
-                        {
-                            noteOff(loopTrackOutputChannel[myTrack], loopTrackByte3[myTrack][loopTrackIndex[myTrack]], 0);                                                  // Send saved noteOff
-                            for (int i = 0; i < hangingNotesIndex[myTrack]; i++)                                                                                            // For all recorded noteOn events
-                            {
-                                if (loopTrackByte3[myTrack][loopTrackIndex[myTrack]] == hangingNotes[myTrack][i])                                                           // If this noteOff matches a noteOn in the hanging notes check array
-                                {
-                                    hangingNotes[myTrack][i] = 254;                                                                                                         // Set the value to 254 so we can ignore it.
-                                }
-                            }
-                        }
-                        if (loopTrackEventType[myTrack][loopTrackIndex[myTrack]] == 2)          // 2, send a controlChange
-                        {
-                            controlChange(loopTrackOutputChannel[myTrack], loopTrackByte3[myTrack][loopTrackIndex[myTrack]], loopTrackByte4[myTrack][loopTrackIndex[myTrack]]);     // Send saved controlChange
-                        }
-                        if (loopTrackEventType[myTrack][loopTrackIndex[myTrack]] == 3)          // 3, send a pitchBendChange
-                        {
-                            pitchBendChange(loopTrackOutputChannel[myTrack], loopTrackByte3[myTrack][loopTrackIndex[myTrack]], loopTrackByte4[myTrack][loopTrackIndex[myTrack]]);   // Send saved pitchBendChange
-                        }
-                        loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                  // Increment the index position
-                    }
-                }
-            }
-        }
-    }
-
-    // Looper button/pedal is held down to force a reset
-    if (loopActivationState == HIGH && previousLoopResetState == LOW)                   // If button is active
-    {
-        previousLoopResetState = HIGH;                                                  // Lock input
-        loopResetClock = currentTime + 1500;                                            // Set reset time to currentTime + 1500 milliseconds.  If the button is not released before then, we will reset.
-    }
-    if (loopActivationState == LOW)                                                     // If the button is released
-    {
-        loopResetClock = 4294967295;                                                    // Set loopResetClock back to the max value for an unsigned long (49.7 days of milliseconds from power on)
+        // LCD Controller Reset Message
+        lcd.setCursor(0,0);                                                                 // Set cursor to column 0 line 0
+        lcd.print("   CONTROLLER   ");                                                      // Print the top line
+        lcd.setCursor(0,1);                                                                 // Set cursor to column 0 line 0
+        lcd.print("     RESET      ");                                                      // Print the bottom line
+        delay(500);                                                                         // Delay to allow the message to be read
+        lcd.clear();                                                                        // Clear the LCD screen
+        WRITE_RESTART(0x5FA0004);                                                           // Write value to memory location to trigger a restart
     }
 }
 
 void playNotes()
 {
-    if (metaAState == LOW && metaBState == LOW)                                                             // Only play notes if no meta keys are held, otherwise duplicate notes would sound when running the program selection preview
+    // Deck 1
+    for (int i = 0; i < deck1ElementCount; i++)                                                  // For all buttons in the deck
     {
-        // Left Deck
-        for (int i = 0; i < leftDeckElementCount; i++)                                                      // For all buttons in the left deck
+        if (deck1ActiveButtons[i] != deck1PreviousActiveButtons[i])                                   // If a change is detected
         {
-            if (activeButtonsLeft[i] != previousActiveButtonsLeft[i])                                       // If a change is detected
+            if (deck1ActiveButtons[i] == 1)                                                      // If the button is active
             {
-                if (activeButtonsLeft[i] == 1)                                                              // If the button is active
+                if (sustainModeEnabled == HIGH)                                             // If sustain mode is enabled, blip sustain
                 {
-                    if (leftDeckLegatoModeEnabled == HIGH)                                                  // If legato mode is enabled, blip sustain on left main and layer channels
-                    {
-                        controlChange(leftDeckMidiChannel, 64, 0);                                          // Disable sustain on the main channel
-                        controlChange(leftDeckLayerMidiChannel, 64, 0);                                     // Disable sustain on the layer channel
-                        controlChange(leftDeckMidiChannel, 64, 127);                                        // Reenable sustain on the main channel
-                        controlChange(leftDeckLayerMidiChannel, 64, 127);                                   // Reenable sustain on the layer channel
-                    }
-                    if (leftDeckDrumsModeEnabled == HIGH)                                                   // If drums mode is enabled
-                    {
-                        noteOn(leftDeckMidiChannel, leftDeckDrums[i], leftDeckVelocity);                    // Send a noteOn for the main left deck channel drums layout with no octave modifier
-                    }
-                    else                                                                                    // If drums mode is disabled
-                    {
-                        noteOn(leftDeckMidiChannel, leftDeckWickiHayden[i] + octave, leftDeckVelocity);     // Send a noteOn for the main left deck channel
-                    }
-                    if (leftDeckLayerNotesEnabled == HIGH && leftDeckDrumsModeEnabled == LOW)               // If layer mode is active, and drums is inactive
-                    {
-                        noteOn(leftDeckLayerMidiChannel, leftDeckWickiHayden[i], multiVelocity);            // Send a noteOn for layer as well
-                    }
-                    previousActiveButtonsLeft[i] = 1;                                                       // Update the "previous" variable for comparison on next loop
+                    controlChange(midiChannel, 64, 0);                                      // Disable sustain on the current channel
+                    controlChange(midiChannel, 64, 127);                                    // Reenable sustain on the current channel
                 }
-                else                                                                                        // If the button is inactive
+                if (drumsModeEnabled == HIGH)                                               // If drums mode is enabled
                 {
-                    if (leftDeckDrumsModeEnabled == HIGH)                                                   // If drums mode is enabled
-                    {
-                        noteOff(leftDeckMidiChannel, leftDeckDrums[i], 0);                                  // Send a noteOff for the main left deck channel drums layout with no octave modifier
-                    }
-                    else                                                                                    // If drums mode is disabled
-                    {
-                        noteOff(leftDeckMidiChannel, leftDeckWickiHayden[i] + octave, 0);                   // Send a noteOff
-                    }
-                    if (leftDeckLayerNotesEnabled == HIGH && leftDeckDrumsModeEnabled == LOW)               // If layer mode is active, and drums is inactive
-                    {
-                        noteOff(leftDeckLayerMidiChannel, leftDeckWickiHayden[i], 0);                       // Send a noteOff for layer as well
-                    }
-                    previousActiveButtonsLeft[i] = 0;                                                       // Update the "previous" variable for comparison on next loop
+                    noteOn(midiChannel, drumLayout[i], velocity);                           // Send a noteOn using drum layout with no octave modifier
+                }
+                if (drumsModeEnabled == LOW)                                                // If drums mode is disabled
+                {
+                    noteOn(midiChannel, deck1WickiHaydenLayout[i] + octave, velocity);           // Send a noteOn using the Wicki-Hayden layout
+                }
+                deck1PreviousActiveButtons[i] = 1;                                               // Update the "previous" variable for comparison on next loop
+            }
+            if (deck1ActiveButtons[i] == 0)                                                      // If the button is inactive
+            {
+                if (drumsModeEnabled == HIGH)                                               // If drums mode is enabled
+                {
+                    noteOff(midiChannel, drumLayout[i], 0);                                 // Send a noteOff using drum layout with no octave modifier
+                }
+                if (drumsModeEnabled == LOW)                                                // If drums mode is disabled
+                {
+                    noteOff(midiChannel, deck1WickiHaydenLayout[i] + octave, 0);                 // Send a noteOff using the Wicki-Hayden layout
+                }
+                deck1PreviousActiveButtons[i] = 0;                                               // Update the "previous" variable for comparison on next loop
+            }
+        }
+    }
+    // Deck 2
+    for (int i = 0; i < deck2ElementCount; i++)                                                  // For all buttons in the deck
+    {
+        if (deck2ActiveButtons[i] != deck2PreviousActiveButtons[i])                                   // If a change is detected
+        {
+            if (deck2ActiveButtons[i] == 1)                                                      // If the button is active
+            {
+                if (sustainModeEnabled == HIGH)                                             // If sustain mode is enabled, blip sustain
+                {
+                    controlChange(midiChannel + 1, 64, 0);                                      // Disable sustain on the current channel
+                    controlChange(midiChannel + 1, 64, 127);                                    // Reenable sustain on the current channel
+                }
+                if (drumsModeEnabled == HIGH)                                               // If drums mode is enabled
+                {
+                    noteOn(midiChannel + 1, deck2WickiHaydenLayout[i] + octave, velocity);                           // Send a noteOn using drum layout with no octave modifier
+                }
+                if (drumsModeEnabled == LOW && midiChannel != 8)                                                // If drums mode is disabled
+                {
+                    noteOn(midiChannel + 1, deck2WickiHaydenLayout[i] + octave, velocity);           // Send a noteOn using the Wicki-Hayden layout
+                }
+                if (drumsModeEnabled == LOW && midiChannel == 8)                                                // If drums mode is disabled
+                {
+                    noteOn(midiChannel + 2, deck2WickiHaydenLayout[i] + octave, velocity);           // Send a noteOn using the Wicki-Hayden layout
+                }
+                deck2PreviousActiveButtons[i] = 1;                                               // Update the "previous" variable for comparison on next loop
+            }
+            if (deck2ActiveButtons[i] == 0)                                                      // If the button is inactive
+            {
+                if (drumsModeEnabled == HIGH)                                               // If drums mode is enabled
+                {
+                    noteOff(midiChannel + 1, deck2WickiHaydenLayout[i] + octave, 0);                                 // Send a noteOff using drum layout with no octave modifier
+                }
+                if (drumsModeEnabled == LOW && midiChannel != 8)                                                // If drums mode is disabled
+                {
+                    noteOff(midiChannel + 1, deck2WickiHaydenLayout[i] + octave, 0);                 // Send a noteOff using the Wicki-Hayden layout
+                }
+                if (drumsModeEnabled == LOW && midiChannel == 8)                                                // If drums mode is disabled
+                {
+                    noteOff(midiChannel + 2, deck2WickiHaydenLayout[i] + octave, 0);           // Send a noteOn using the Wicki-Hayden layout
+                }
+                deck2PreviousActiveButtons[i] = 0;                                               // Update the "previous" variable for comparison on next loop
+            }
+        }
+    }
+
+}
+
+void runLooper()
+{   // Here be dragons...
+
+    // Stop/restart playback
+    if (metaKeyState == HIGH && loopOverdubState == HIGH && previousLoopOverdubState == LOW && loopPlaybackEnabled == HIGH && loopInMemory == HIGH) // If playback is currently enabled, stop it
+    {
+        previousLoopOverdubState = HIGH;                                                                                    // Lock input until released
+        loopPlaybackEnabled = LOW;                                                                                          // Disable loop playback
+        for (int myTrack = 0; myTrack < loopMaxTracks; myTrack++)                                                           // For all looper tracks
+        {
+            for (int myIndex = loopPlaybackIndex[myTrack]; myIndex < loopRecordingIndex[myTrack]; myIndex++)                // From the current playback index forward
+            {
+                if (loopPacketByte0[myTrack][myIndex] == 0)                                                                 // If packet type is noteOff
+                {
+                    loopNoteOff(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]);             // Spool out remaining noteOffs to close notes and prevent hangs
                 }
             }
         }
-        // Right Deck
-        for (int i = 0; i < rightDeckElementCount; i++)                                                     // For all buttons in the right deck
+        // LCD Update Looper
+        lcd.setCursor(0,1);
+        lcd.write(4);lcd.write(5);                                                                                          // Write left and right side of pause glyph to LCD
+    }
+    if (metaKeyState == HIGH && loopOverdubState == HIGH && previousLoopOverdubState == LOW && loopPlaybackEnabled == LOW && loopInMemory == HIGH)  // If playback is currently disabled, start it
+    {
+        previousLoopOverdubState = HIGH;                                                                                    // Lock input until released
+        loopPlaybackEnabled = HIGH;                                                                                         // Enable loop playback
+        loopStartTimestamp = currentTime;                                                                                   // Reset the loopStartTimestamp to restart playback
+        memset(loopPlaybackIndex, 0, sizeof(loopPlaybackIndex));                                                            // Return playback index to 0 for all tracks
+    }
+
+    // Loop index overflow detection
+    if (loopRecordState == HIGH && loopInMemory == HIGH)
+    {
+        // If the end of the array is reached, force a reset
+        for (int myTrack = 0; myTrack < loopMaxTracks; myTrack++)                                                           // For all looper tracks
         {
-            if (activeButtonsRight[i] != previousActiveButtonsRight[i])                                     // If a change is detected
+            if (loopRecordingIndex[myTrack] >= loopMaxIndexes)                                                              // If the max index was reached
             {
-                if (activeButtonsRight[i] == 1)                                                             // If the button is active
+                loopRecordingEnabled = LOW;                                                                                 // Disable loop packet recording
+                loopPlaybackEnabled = LOW;                                                                                  // Disable playback
+                loopInMemory = LOW;                                                                                         // Mark loop free for writing
+                loopInputDetected = LOW;                                                                                    // Reset loop input detection variable
+                loopDuration = 0;                                                                                           // Clear loop duration
+                loopStartTimestamp = 0;                                                                                     // Clear loop start timestamp
+                memset(loopRecordingIndex, 0, sizeof(loopRecordingIndex));                                                  // Flatten all looper arrays
+                memset(loopPlaybackIndex, 0, sizeof(loopPlaybackIndex));                                                    // Flatten all looper arrays
+                memset(loopPacketEventTime, 0, sizeof(loopPacketEventTime));                                                // Flatten all looper arrays
+                memset(loopPacketByte0, 0, sizeof(loopPacketByte0));                                                        // Flatten all looper arrays
+                memset(loopPacketByte1, 0, sizeof(loopPacketByte1));                                                        // Flatten all looper arrays
+                memset(loopPacketByte2, 0, sizeof(loopPacketByte2));                                                        // Flatten all looper arrays
+                memset(loopTrackActive, 0, sizeof(loopTrackActive));                                                        // Flatten all looper arrays
+                loopParentChannel = 255;                                                                                    // Reset loop parent channel
+                lcd.setCursor(0,0);                                                                                         // Set cursor to column 0 line 0
+                lcd.print(" INDEX OVERFLOW ");                                                                              // Print the top line
+                delay(1500);                                                                                                // Delay to allow the message to be read
+                // LCD Update Top Menu
+                lcd.setCursor(0,0);
+                lcd.print("LP M R PRG CH OC");
+                // LCD Update Looper
+                lcd.setCursor(0,1);
+                lcd.print("--");
+            }
+        }
+    }
+
+    // Step 1a - Recording is enabled and there is no loop already in memory - Initialize variables
+    if (loopRecordState == HIGH && previousLoopRecordState == LOW && loopInMemory == LOW)
+    {
+        previousLoopRecordState = HIGH;                                                                                     // Lock input until released
+        loopRecordingEnabled = HIGH;                                                                                        // Enable loop packet recording
+        loopPlaybackEnabled = LOW;                                                                                          // Disable playback
+        loopInMemory = LOW;                                                                                                 // Mark loop free for writing
+        loopInputDetected = LOW;                                                                                            // Reset loop input detection variable
+        loopDuration = 0;                                                                                                   // Clear loop duration
+        loopStartTimestamp = 0;                                                                                             // Clear loop start timestamp
+        memset(loopRecordingIndex, 0, sizeof(loopRecordingIndex));                                                          // Flatten all looper arrays
+        memset(loopPlaybackIndex, 0, sizeof(loopPlaybackIndex));                                                            // Flatten all looper arrays
+        memset(loopPacketEventTime, 0, sizeof(loopPacketEventTime));                                                        // Flatten all looper arrays
+        memset(loopPacketByte0, 0, sizeof(loopPacketByte0));                                                                // Flatten all looper arrays
+        memset(loopPacketByte1, 0, sizeof(loopPacketByte1));                                                                // Flatten all looper arrays
+        memset(loopPacketByte2, 0, sizeof(loopPacketByte2));                                                                // Flatten all looper arrays
+        memset(loopTrackActive, 0, sizeof(loopTrackActive));                                                                // Flatten all looper arrays
+        loopParentChannel = 255;                                                                                            // Reset loop parent channel
+        // LCD Update Looper
+        lcd.setCursor(0,1);
+        lcd.print("??");
+
+    }
+
+    // Step 2a - Loop start detection -  Located in main program loop (needs to sit between readDigitalButtons() and playNotes() functions)
+
+    // Step 2b - Recording was disabled with no notes having been pressed
+    if (loopRecordState == LOW && previousLoopRecordState == HIGH && loopInMemory == LOW)
+    {
+        // LCD Update Looper
+        lcd.setCursor(0,1);
+        lcd.print("--");
+
+        // LCD Update Loop Track status
+        lcd.setCursor(10,1);
+        lcd.print(" ");
+        lcd.setCursor(13,1);
+        lcd.print(" ");
+    }
+
+    // Step 3a - Recording is deactivated and there is data in memory
+    if (loopRecordState == LOW && previousLoopRecordState == HIGH && loopInMemory == HIGH)
+    {
+        previousLoopRecordState = LOW;                                          // Lock input until released
+
+        // In case a note button was still being held while the record button was released
+        for (int i = 0; i < deck1ElementCount; i++)                                  // For all buttons in the deck
+        {
+            if (deck1ActiveButtons[i] == 1 && i != 1 && i != 3 && i != 5 && i != 6 && i != 7 && i != 8 && i != 9)    // If a recordable button is active
+            {
+                if (drumsModeEnabled == HIGH)                                   // If drums mode is enabled
                 {
-                    noteOn(rightDeckMidiChannel, rightDeckWickiHayden[i] + octave, rightDeckVelocity);      // Send a noteOn for the main right deck channel
-                    if (rightDeckLayerNotesEnabled == HIGH)                                                 // If layer mode is active
-                    {
-                        noteOn(rightDeckLayerMidiChannel, rightDeckWickiHayden[i], multiVelocity);          // Send a noteOn for layer as well
-                    }
-                    previousActiveButtonsRight[i] = 1;                                                      // Update the "previous" variable for comparison on next loop
+                    noteOff(midiChannel, drumLayout[i], 0);                     // Send a noteOff using drum layout with no octave modifier
                 }
-                else                                                                                        // If the button is inactive
+                if (drumsModeEnabled == LOW)                                    // If drums mode is disabled
                 {
-                    noteOff(rightDeckMidiChannel, rightDeckWickiHayden[i] + octave, 0);                     // Send a noteOff
-                    if (rightDeckLayerNotesEnabled == HIGH)                                                 // If layer mode is active
-                    {
-                        noteOff(rightDeckLayerMidiChannel, rightDeckWickiHayden[i], 0);                     // Send a noteOff for layer as well
-                    }
-                    previousActiveButtonsRight[i] = 0;                                                      // Update the "previous" variable for comparison on next loop
+                    noteOff(midiChannel, deck1WickiHaydenLayout[i] + octave, 0);     // Send a noteOff using the Wicki-Hayden layout
                 }
             }
         }
+        loopDuration = (currentTime - loopStartTimestamp);                      // Set loop duration
+        loopStartTimestamp = currentTime;                                       // Set loop start time to current time to prepare for a new playback loop
+        loopRecordingEnabled = LOW;                                             // Disable loop packet recording
+        loopPlaybackEnabled = HIGH;                                             // Enable loop playback
+        loopTrackActive[midiChannel] = HIGH;                                    // Mark track as active so that playback packets aren't recorded again
+        loopParentChannel = midiChannel;                                        // Designate loop parent channel
+
+        // LCD Update Loop Track status
+        lcd.setCursor(10,1);
+        lcd.print("(");
+        lcd.setCursor(13,1);
+        lcd.print(")");
+
+    }
+
+
+    // Step 3b - Loop overdub is enabled before the parent loop has finished recording.  Close the loop, and immediately start overdub recording on the next higher channel.
+    if (loopOverdubState == HIGH && previousLoopOverdubState == LOW && loopRecordState == HIGH && previousLoopRecordState == HIGH && loopInMemory == HIGH)
+    {
+        previousLoopOverdubState = LOW;                                          // Lock input until released
+        loopRecordState = LOW;
+        previousLoopRecordState = LOW;
+
+        // In case a note button was still being held while the record button was released
+        for (int i = 0; i < deck1ElementCount; i++)                                  // For all buttons in the deck
+        {
+            if (deck1ActiveButtons[i] == 1 && i != 1 && i != 3 && i != 5 && i != 6 && i != 7 && i != 8 && i != 9)    // If a recordable button is active
+            {
+                if (drumsModeEnabled == HIGH)                                   // If drums mode is enabled
+                {
+                    noteOff(midiChannel, drumLayout[i], 0);                     // Send a noteOff using drum layout with no octave modifier
+                }
+                if (drumsModeEnabled == LOW)                                    // If drums mode is disabled
+                {
+                    noteOff(midiChannel, deck1WickiHaydenLayout[i] + octave, 0);     // Send a noteOff using the Wicki-Hayden layout
+                }
+            }
+        }
+        loopDuration = (currentTime - loopStartTimestamp);                      // Set loop duration
+        loopStartTimestamp = currentTime;                                       // Set loop start time to current time to prepare for a new playback loop
+        loopRecordingEnabled = LOW;                                             // Disable loop packet recording
+        loopPlaybackEnabled = HIGH;                                             // Enable loop playback
+        loopTrackActive[midiChannel] = HIGH;                                    // Mark track as active so that playback packets aren't recorded again
+        loopParentChannel = midiChannel;                                        // Designate loop parent channel
+
+        // LCD Update Loop Track status
+        lcd.setCursor(10,1);
+        lcd.print("(");
+        lcd.setCursor(13,1);
+        lcd.print(")");
+
+        // Increment MIDI Channel
+        if ((midiChannel < 8 || midiChannel > 9) && midiChannel < 15)           // Don't auto increment into the drums channel
+        {
+            midiChannel = midiChannel + 1;
+        }
+        if (midiChannel == 8)
+        {
+            midiChannel = midiChannel + 2;
+        }
+        if (midiChannel == 9)                                                   // If current track IS the drums channel
+        {
+            drumsModeEnabled = LOW;                                             // Disable drums mode
+            midiChannel = 0;                                                    // Go directly to channel 0 instead of incrementing to channel 10
+            programChange(midiChannel, midiProgram[midiChannel]);               // Change the program back to what was saved for this channel
+            // LCD Update Current Mode Selection
+            lcd.setCursor(3,1);
+            lcd.print("N");
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            lcd.print("01");
+
+            if (loopTrackActive[midiChannel] == HIGH)
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == LOW)
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+        }
+        if (midiChannel == 15)                                                  // If MIDI channel 15, wrap back around to 0
+        {
+            midiChannel = 0;
+        }
+
+        // LCD Update MIDI Channel Info
+        lcd.setCursor(11,1);
+        if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+        if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+        // LCD Update MIDI Program Info
+        lcd.setCursor(7,1);
+        if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+        if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+        if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+        // LCD Update Reverb State
+        lcd.setCursor(5,1);
+        if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+        if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+        if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)   // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+        {
+            // LCD Update Loop Track status
+            lcd.setCursor(10,1);
+            lcd.print("(");
+            lcd.setCursor(13,1);
+            lcd.print(")");
+        }
+        if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)   // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+        {
+            // LCD Update Loop Track status
+            lcd.setCursor(10,1);
+            lcd.write(6);                                                               // Left side of loop track active glyph
+            lcd.setCursor(13,1);
+            lcd.write(7);                                                               // Right side of loop track active glyph
+        }
+        if (loopTrackActive[midiChannel] == LOW)                                        // If looper is inactive on this channel, clear the indicators at the cursor position.
+        {
+            // LCD Update Loop Track status
+            lcd.setCursor(10,1);
+            lcd.print(" ");
+            lcd.setCursor(13,1);
+            lcd.print(" ");
+        }
+
+
+        if (previousLoopOverdubState == LOW)                                                                                            // Reinit loop to clear playback.  Broken out here to allow for percentage checking below.
+        {
+            previousLoopOverdubState = HIGH;                                                                                            // Lock input until released
+
+            for (int myIndex = loopPlaybackIndex[midiChannel]; myIndex < loopRecordingIndex[midiChannel]; myIndex++)                    // From the current playback index forward
+            {
+                if (loopPacketByte0[midiChannel][myIndex] == 0)                                                                         // If the packet type is 0 = noteOff
+                {
+                    loopNoteOff(midiChannel, loopPacketByte1[midiChannel][myIndex], loopPacketByte2[midiChannel][myIndex]);             // Spool out remaining noteOffs to close notes and prevent hangs
+                }
+            }
+
+            loopRecordingIndex[midiChannel] = 0;                                        // Reset recording index for current track to 0
+            loopPlaybackIndex[midiChannel] = 0;                                         // Reset playback index for current track to 0
+            for (int myIndex = 0; myIndex < loopMaxIndexes; myIndex++)                  // For all indexes allocated to a looper track
+            {
+                loopPacketEventTime[midiChannel][myIndex] = 0;                          // Reset event time for current track to 0
+                loopPacketByte0[midiChannel][myIndex] = 0;                              // Reset event type for current track to 0
+                loopPacketByte1[midiChannel][myIndex] = 0;                              // Reset pitch/control/highByte for current track to 0
+                loopPacketByte2[midiChannel][myIndex] = 0;                              // Reset velocity/value/lowByte for current track to 0
+            }
+
+            loopTrackActive[midiChannel] = LOW;                                         // Mark track available for recording
+
+            // LCD Update Loop Track status
+            lcd.setCursor(10,1);
+            lcd.print(" ");
+            lcd.setCursor(13,1);
+            lcd.print(" ");
+        }
+        loopRecordingEnabled = HIGH;                                                    // Enable loop packet recording
+
+    }
+
+
+    // Step 4 - Play the loop repeatedly
+    if (loopPlaybackEnabled == HIGH && loopInMemory == HIGH)
+    {
+        if ((loopStartTimestamp + loopDuration) >= currentTime)                                                                     // If we are still inside of the current loop duration
+        {
+            for (int myTrack = 0; myTrack < loopMaxTracks; myTrack++)                                                               // For all looper tracks
+            {
+                if (loopTrackActive[myTrack] == HIGH)
+                {
+                    for (int myIndex = loopPlaybackIndex[myTrack]; myIndex < loopRecordingIndex[myTrack]; myIndex++)                // For all indexes from current the playback index forward
+                    {
+                        if (loopPacketEventTime[myTrack][myIndex] <= (currentTime - loopStartTimestamp))                            // If the packet event time is right now, or is in the past
+                        {
+                            if (loopPacketByte0[myTrack][myIndex] == 1)                                                             // If the packet type is 1 = noteOn
+                            {                                                                                                       
+                                loopNoteOn(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]);          // Send a noteOn bypassing the normal function (needed for multitrack overdubbing)
+                                loopPlaybackIndex[myTrack] = loopPlaybackIndex[myTrack] + 1;                                        // Increment the playback index
+                            }
+                            if (loopPacketByte0[myTrack][myIndex] == 0)                                                             // If the packet type is 0 = noteOff
+                            {                                                                                                       
+                                loopNoteOff(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]);         // Send a noteOff bypassing the normal function (needed for multitrack overdubbing)
+                                loopPlaybackIndex[myTrack] = loopPlaybackIndex[myTrack] + 1;                                        // Increment the playback index
+                            }
+                            if (loopPacketByte0[myTrack][myIndex] == 2)                                                             // If the packet type is 2 = controlChange
+                            {
+                                loopControlChange(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]);   // Send a controlChange bypassing the normal function (needed for multitrack overdubbing)
+                                loopPlaybackIndex[myTrack] = loopPlaybackIndex[myTrack] + 1;                                        // Increment the playback index
+                            }
+                            if (loopPacketByte0[myTrack][myIndex] == 3)                                                             // If the packet type is 3 = pitchBendChange
+                            {
+                                loopPitchBendChange(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]); // Send a pitchBendChange bypassing the normal function (needed for multitrack overdubbing)
+                                loopPlaybackIndex[myTrack] = loopPlaybackIndex[myTrack] + 1;                                        // Increment the playback index
+                            }
+                        }
+                    }
+                }
+            }
+            // LCD Looper Playback Percentage
+            loopPercentage = ((currentTime - loopStartTimestamp) * 100) / loopDuration;     // Find percentage of loop completion and store in a variable.
+            if (loopPercentage < 10 && loopPercentage != previousLoopPercentage)            // If less than 10 (i.e. less than 2 digits), and only if the number has changed.
+            {                                                                               // Prevents updating the LCD unnecessarily.
+                lcd.setCursor(0,1);
+                lcd.print("0");                                                             // Pad a leading "0"
+                lcd.print(loopPercentage);
+                previousLoopPercentage = loopPercentage;
+            }
+            if (loopPercentage >= 10 && loopPercentage < 100 && loopPercentage != previousLoopPercentage)   // If two digits
+            {
+                lcd.setCursor(0,1);
+                lcd.print(loopPercentage);                                                                  // Print the actual value
+                previousLoopPercentage = loopPercentage;
+            }
+        }
+        else                                                                                                                        // If we have exceeded the current loop duration
+        {
+            // In case a note button was still being held when overdub reached the end of parent loop duration
+            if (loopOverdubState == HIGH && loopRecordingIndex[midiChannel] > 0 && loopParentChannel != midiChannel)
+            {
+                for (int i = 0; i < deck1ElementCount; i++)                                      // For all buttons in the deck
+                {
+                    if (deck1ActiveButtons[i] == 1 && i != 1 && i != 3 && i != 5 && i != 6 && i != 7 && i != 8 && i != 9)                // If a recordable button is active
+                    {
+                        if (drumsModeEnabled == HIGH)                                       // If drums mode is enabled
+                        {
+                            noteOff(midiChannel, drumLayout[i], 0);                         // Send a noteOff using drum layout with no octave modifier
+                        }
+                        if (drumsModeEnabled == LOW)                                        // If drums mode is disabled
+                        {
+                            noteOff(midiChannel, deck1WickiHaydenLayout[i] + octave, 0);         // Send a noteOff using the Wicki-Hayden layout
+                        }
+                    }
+                }
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                               // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                               // Right side of loop track active glyph
+            }
+
+            loopOverdubState = LOW;                                                         // Blip the overdub button if it's being held on rollover to immediately start recording a new overdub track
+
+            // Send any potentially remaining unplayed events
+            for (int myTrack = 0; myTrack < loopMaxTracks; myTrack++)                                                               // For all looper tracks
+            {
+                if (loopTrackActive[myTrack] == HIGH)
+                {
+                    for (int myIndex = loopPlaybackIndex[myTrack]; myIndex < loopRecordingIndex[myTrack]; myIndex++)                // For all indexes from current the playback index forward
+                    {
+                        if (loopPacketByte0[myTrack][myIndex] == 1)                                                                 // If the packet type is 1 = noteOn
+                        {
+                            loopNoteOn(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]);              // Send a noteOn bypassing the normal function (needed for multitrack overdubbing)
+                            loopPlaybackIndex[myTrack] = loopPlaybackIndex[myTrack] + 1;                                            // Increment the playback index
+                        }
+                        if (loopPacketByte0[myTrack][myIndex] == 0)                                                                 // If the packet type is 0 = noteOff
+                        {
+                            loopNoteOff(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]);             // Send a noteOff bypassing the normal function (needed for multitrack overdubbing)
+                            loopPlaybackIndex[myTrack] = loopPlaybackIndex[myTrack] + 1;                                            // Increment the playback index
+                        }
+                        if (loopPacketByte0[myTrack][myIndex] == 2)                                                                 // If the packet type is 2 = controlChange
+                        {
+                            loopControlChange(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]);       // Send a controlChange bypassing the normal function (needed for multitrack overdubbing)
+                            loopPlaybackIndex[myTrack] = loopPlaybackIndex[myTrack] + 1;                                            // Increment the playback index
+                        }
+                        if (loopPacketByte0[myTrack][myIndex] == 3)                                                                 // If the packet type is 3 = pitchBendChange
+                        {
+                            loopPitchBendChange(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]);     // Send a pitchBendChange bypassing the normal function (needed for multitrack overdubbing)
+                            loopPlaybackIndex[myTrack] = loopPlaybackIndex[myTrack] + 1;                                            // Increment the playback index
+                        }
+                    }
+                }
+            }
+
+            loopStartTimestamp = currentTime;                                                                                       // Set the loop start timestamp to current time to begin a new trip through the loop
+
+            for (int myTrack = 0; myTrack < loopMaxTracks; myTrack++)
+            {
+                if (loopRecordingIndex[myTrack] > 0)                                                                                // If loopRecordingIndex is > 0 indicating notes have been recorded
+                {
+                    loopTrackActive[myTrack] = HIGH;                                                                                // Enable the loop track for playback on next loop
+                }
+            }
+            memset(loopPlaybackIndex, 0, sizeof(loopPlaybackIndex));                                                                // Return playback index to 0 for all tracks
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)   // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)   // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                               // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                               // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                        // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+
+        }
+    }
+
+
+
+    // Step 5b - Loop overdub recording is disabled
+    if (loopOverdubState == LOW && previousLoopOverdubState == HIGH && loopInMemory == HIGH && loopPlaybackEnabled == HIGH)
+    {
+        previousLoopOverdubState = LOW;                                                     // Lock input until released
+
+        if (loopOverdubTrigger == HIGH)                                                     // Enable loop overdub if it's actually being held through loop restart
+        {
+            loopOverdubState = HIGH;
+        }
+        // In case a note button was still being held while the overdub button was released
+        for (int i = 0; i < deck1ElementCount; i++)                                              // For all buttons in the deck
+        {
+            if (deck1ActiveButtons[i] == 1 && i != 1 && i != 3 && i != 5 && i != 6 && i != 7 && i != 8 && i != 9)    // If a recordable button is active
+            {
+                if (drumsModeEnabled == HIGH)                                               // If drums mode is enabled
+                {
+                    noteOff(midiChannel, drumLayout[i], 0);                                 // Send a noteOff using drum layout with no octave modifier
+                }
+                if (drumsModeEnabled == LOW)                                                // If drums mode is disabled
+                {
+                    noteOff(midiChannel, deck1WickiHaydenLayout[i] + octave, 0);                 // Send a noteOff using the Wicki-Hayden layout
+                }
+            }
+        }
+
+        loopRecordingEnabled = LOW;                                                         // Disable loop packet recording
+
+
+        if (loopTrackActive[midiChannel] == HIGH)                                           // If there is already an active looper track at this channel
+        {
+
+            // Increment MIDI Channel
+            if ((midiChannel < 8 || midiChannel > 9) && midiChannel < 15)                   // Don't auto increment into the drums channel
+            {
+                midiChannel = midiChannel + 1;                                              // Increment channel
+            }
+            if (midiChannel == 8)
+            {
+                midiChannel = midiChannel + 2;                                              // Increment channel
+            }
+            if (midiChannel == 9)                                                           // If current track IS the drums channel
+            {
+                drumsModeEnabled = LOW;                                                     // Disable drums mode
+                midiChannel = 0;                                                            // Go directly to channel 0 instead of incrementing to channel 10
+                programChange(midiChannel, midiProgram[midiChannel]);                       // Change the program back to what was saved for this channel
+                // LCD Update Current Mode Selection
+                lcd.setCursor(3,1);
+                lcd.print("N");
+                // LCD Update MIDI Channel Info
+                lcd.setCursor(11,1);
+                lcd.print("01");
+
+                if (loopTrackActive[midiChannel] == HIGH)
+                {
+                    // LCD Update Loop Track status
+                    lcd.setCursor(10,1);
+                    lcd.print("(");
+                    lcd.setCursor(13,1);
+                    lcd.print(")");
+                }
+                if (loopTrackActive[midiChannel] == LOW)
+                {
+                    // LCD Update Loop Track status
+                    lcd.setCursor(10,1);
+                    lcd.print(" ");
+                    lcd.setCursor(13,1);
+                    lcd.print(" ");
+                }
+            }
+            if (midiChannel == 15)                                                          // If MIDI channel 15, wrap back around to 0
+            {
+                midiChannel = 0;
+            }
+
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)   // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)   // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                               // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                               // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                        // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+        }
+
+    }
+
+
+    // Step 5a - Loop overdub recording is enabled and there is currently a parent loop playing
+    if (loopOverdubState == HIGH && loopInMemory == HIGH && loopPlaybackEnabled == HIGH)
+    {
+
+        if (midiChannel == loopParentChannel)                                               // Auto increment channel if this is the looper parent channel
+        {
+
+            // Increment MIDI Channel
+            if ((midiChannel < 8 || midiChannel > 9) && midiChannel < 15)                   // Don't auto increment into the drums channel
+            {
+                midiChannel = midiChannel + 1;                                              // Increment channel
+            }
+            if (midiChannel == 8)
+            {
+                midiChannel = midiChannel + 2;                                              // Increment channel
+            }
+            if (midiChannel == 9)                                                           // If current track IS the drums channel
+            {
+                drumsModeEnabled = LOW;                                                     // Disable drums mode
+                midiChannel = 0;                                                            // Go directly to channel 0 instead of incrementing to channel 10
+                programChange(midiChannel, midiProgram[midiChannel]);                       // Change the program back to what was saved for this channel
+                // LCD Update Current Mode Selection
+                lcd.setCursor(3,1);
+                lcd.print("N");
+                // LCD Update MIDI Channel Info
+                lcd.setCursor(11,1);
+                lcd.print("01");
+
+                if (loopTrackActive[midiChannel] == HIGH)
+                {
+                    // LCD Update Loop Track status
+                    lcd.setCursor(10,1);
+                    lcd.print("(");
+                    lcd.setCursor(13,1);
+                    lcd.print(")");
+                }
+                if (loopTrackActive[midiChannel] == LOW)
+                {
+                    // LCD Update Loop Track status
+                    lcd.setCursor(10,1);
+                    lcd.print(" ");
+                    lcd.setCursor(13,1);
+                    lcd.print(" ");
+                }
+            }
+            if (midiChannel == 15)                                                          // If MIDI channel 15, wrap back around to 0
+            {
+                midiChannel = 0;
+            }
+
+            // LCD Update MIDI Channel Info
+            lcd.setCursor(11,1);
+            if (midiChannel < 9) { lcd.print("0"); lcd.print(midiChannel + 1); }
+            if (midiChannel > 9) { lcd.print(midiChannel + 1); }
+            // LCD Update MIDI Program Info
+            lcd.setCursor(7,1);
+            if (midiProgram[midiChannel] < 9) { lcd.print("00"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 9 && midiProgram[midiChannel] < 99) { lcd.print("0"); lcd.print(midiProgram[midiChannel] + 1); }
+            if (midiProgram[midiChannel] >= 99) { lcd.print(midiProgram[midiChannel] + 1); }
+            // LCD Update Reverb State
+            lcd.setCursor(5,1);
+            if (reverbState[midiChannel] == HIGH) { lcd.print("1"); }
+            if (reverbState[midiChannel] == LOW)  { lcd.print("0"); }
+
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel == loopParentChannel)   // If the looper is active on this channel, and this is the parent loop's channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print("(");
+                lcd.setCursor(13,1);
+                lcd.print(")");
+            }
+            if (loopTrackActive[midiChannel] == HIGH && midiChannel != loopParentChannel)   // If the looper is active on this channel, and this is an overdub loop channel, print indicator.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.write(6);                                                               // Left side of loop track active glyph
+                lcd.setCursor(13,1);
+                lcd.write(7);                                                               // Right side of loop track active glyph
+            }
+            if (loopTrackActive[midiChannel] == LOW)                                        // If looper is inactive on this channel, clear the indicators at the cursor position.
+            {
+                // LCD Update Loop Track status
+                lcd.setCursor(10,1);
+                lcd.print(" ");
+                lcd.setCursor(13,1);
+                lcd.print(" ");
+            }
+        }
+
+
+        if (previousLoopOverdubState == LOW)                                                                                            // Reinit loop to clear playback.  Broken out to allow percentage checking below.
+        {
+            previousLoopOverdubState = HIGH;                                                                                            // Lock input until released
+
+            for (int myIndex = loopPlaybackIndex[midiChannel]; myIndex < loopRecordingIndex[midiChannel]; myIndex++)                    // From the current playback index forward
+            {
+                if (loopPacketByte0[midiChannel][myIndex] == 0)                                                                         // If the packet type is 0 = noteOff
+                {
+                    loopNoteOff(midiChannel, loopPacketByte1[midiChannel][myIndex], loopPacketByte2[midiChannel][myIndex]);             // Spool out remaining noteOffs to close notes and prevent hangs
+                }
+            }
+
+            loopRecordingIndex[midiChannel] = 0;                                // Reset recording index for current track to 0
+            loopPlaybackIndex[midiChannel] = 0;                                 // Reset playback index for current track to 0
+            for (int myIndex = 0; myIndex < loopMaxIndexes; myIndex++)          // For all indexes allocated to a looper track
+            {
+                loopPacketEventTime[midiChannel][myIndex] = 0;                  // Reset event time for current track to 0
+                loopPacketByte0[midiChannel][myIndex] = 0;                      // Reset event type for current track to 0
+                loopPacketByte1[midiChannel][myIndex] = 0;                      // Reset pitch/control/highByte for current track to 0
+                loopPacketByte2[midiChannel][myIndex] = 0;                      // Reset velocity/value/lowByte for current track to 0
+            }
+            
+            loopTrackActive[midiChannel] = LOW;                                 // Mark track available for recording
+
+            // LCD Update Loop Track status
+            lcd.setCursor(10,1);
+            lcd.print(" ");
+            lcd.setCursor(13,1);
+            lcd.print(" ");
+        }
+
+        if (loopPercentage < 25)                                                // Prevent recording from enabling if overdub was pressed when we're already well into the track.
+        {                                                                       // Otherwise if the gun is jumped, and a note was hit just before loop reset, this would
+            loopRecordingEnabled = HIGH;                                        // cause a single note playback at 99%, and a worthless track for a full loop.
+        }
+    }
+
+
+    // Step 6 - Recording is enabled again, and there is data in memory.  Flush data and reinitialize
+    if (loopRecordState == HIGH && previousLoopRecordState == LOW && loopInMemory == HIGH)
+    {
+        previousLoopRecordState = HIGH;                                                                                 // Lock input until released
+        for (int myTrack = 0; myTrack < loopMaxTracks; myTrack++)                                                       // For all looper tracks
+        {
+            for (int myIndex = loopPlaybackIndex[myTrack]; myIndex < loopRecordingIndex[myTrack]; myIndex++)            // From the current playback index forward
+            {
+                if (loopPacketByte0[myTrack][myIndex] == 0)                                                             // If packet type is noteOff
+                {
+                    loopNoteOff(myTrack, loopPacketByte1[myTrack][myIndex], loopPacketByte2[myTrack][myIndex]);         // Spool out remaining noteOffs to close notes and prevent hangs
+                }
+            }
+        }
+        loopRecordingEnabled = HIGH;                                            // Enable loop packet recording
+        loopPlaybackEnabled = LOW;                                              // Disable playback
+        loopInMemory = LOW;                                                     // Mark loop free for writing
+        loopInputDetected = LOW;                                                // Reset loop input detection variable
+        loopDuration = 0;                                                       // Clear loop duration
+        loopStartTimestamp = 0;                                                 // Clear loop start timestamp
+        memset(loopRecordingIndex, 0, sizeof(loopRecordingIndex));              // Flatten all looper arrays
+        memset(loopPlaybackIndex, 0, sizeof(loopPlaybackIndex));                // Flatten all looper arrays
+        memset(loopPacketEventTime, 0, sizeof(loopPacketEventTime));            // Flatten all looper arrays
+        memset(loopPacketByte0, 0, sizeof(loopPacketByte0));                    // Flatten all looper arrays
+        memset(loopPacketByte1, 0, sizeof(loopPacketByte1));                    // Flatten all looper arrays
+        memset(loopPacketByte2, 0, sizeof(loopPacketByte2));                    // Flatten all looper arrays
+        memset(loopTrackActive, 0, sizeof(loopTrackActive));                    // Flatten all looper arrays
+        loopParentChannel = 255;                                                // Reset loop parent channel
+
+        // LCD Update Looper
+        lcd.setCursor(0,1);
+        lcd.print("??");
+
+        // LCD Update Loop Track status
+        lcd.setCursor(10,1);
+        lcd.print("(");
+        lcd.setCursor(13,1);
+        lcd.print(")");
     }
 }
 
@@ -1793,280 +2297,146 @@ void playNotes()
 
 // Send MIDI Note On
 // 1st byte = Event type (0x09 = note on, 0x08 = note off).
-// 2nd byte = Event type combined with MIDI channel.
+// 2nd byte = Event type bitwise ORed with MIDI channel.
 // 3rd byte = MIDI note number.
 // 4th byte = Velocity (7-bit range 0-127)
 void noteOn(byte channel, byte pitch, byte velocity)
 {
-    // Looper functions (these need to run every time a MIDI packet function is called, otherwise the looper would only intercept the most recent event in any single program loop)
-    if ((channel >= 0 && channel < 4) || channel == 9) // If channel is 0 (left deck), 1 (right deck), 2 (left layer), 3 (right layer), or 9 (drums channel)
+    if (loopRecordingEnabled == HIGH && loopTrackActive[channel] == LOW)                                    // If loop recording enabled, and track available for recording
     {
-        midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
-        byte eventType = 1;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
-        byte myTrack;                                                                                               // Initialize track value
-        // Record notes to the looper
-        if (loopRecordingEnabled == HIGH && loopInMemory == HIGH && currentLoopIteration == previousLoopIteration)
-        {
-            if (midiPacketIndex > previousMidiPacketIndex)                                                          // If the MIDI packet index has been incremented (meaning a new event has occurred)
-            {
-                if (channel == 9 && leftDeckDrumsModeEnabled == HIGH && loopTrackActive[11] == HIGH && loopDrumsInMemory == LOW)    // If drums mode is enabled, and there isn't already a drums track recorded
-                {
-                    myTrack = 11;                                                                                   // Track 11 reserved for MIDI percussion channel 9
-                    loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                    loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                    loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = pitch;                                       // Save the note/cc number/pitch bend low byte
-                    loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = velocity;                                    // Save the velocity/cc value, pitch bend high byte
-                    loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                    loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                    loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
-                }
-                if (channel == 0)                                                                                   // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
-                {
-                    myTrack = leftDeckInputTrack;
-                    goto continueNoteOn;
-                }
-                if (channel == 1)                                                                                   // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
-                {
-                    myTrack = rightDeckInputTrack;
-                    goto continueNoteOn;
-                }
-                if (channel == 2)                                                                                   // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
-                {
-                    myTrack = leftDeckLayerInputTrack;
-                    goto continueNoteOn;
-                }
-                if (channel == 3)                                                                                   // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
-                {
-                    myTrack = rightDeckLayerInputTrack;
-                    goto continueNoteOn;
-                }
-                else
-                {
-                    goto invalidNoteOn;
-                }
-                continueNoteOn:
-                loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = pitch;                                       // Save the note/cc number/pitch bend low byte
-                loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = velocity;                                    // Save the velocity/cc value, pitch bend high byte
-                loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
-            }
-            invalidNoteOn:
-            previousMidiPacketIndex = midiPacketIndex;                                                          // Save the "previous" variable for comparison on next program loop
-        }
+        loopPacketEventTime[channel][loopRecordingIndex[channel]] = (currentTime - loopStartTimestamp);     // Record event time in relation to loop start
+        loopPacketByte0[channel][loopRecordingIndex[channel]] = 1;                                          // Record event type (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
+        loopPacketByte1[channel][loopRecordingIndex[channel]] = pitch;                                      // Record pitch/control/highByte
+        loopPacketByte2[channel][loopRecordingIndex[channel]] = velocity;                                   // Record velocity/value/lowByte
+        loopRecordingIndex[channel] = loopRecordingIndex[channel] + 1;                                      // Increment the recording index
     }
-    midiEventPacket_t noteOn = {0x09, 0x90 | channel, pitch, velocity};                 // Build a struct containing all of our information in a single packet
-    MidiUSB.sendMIDI(noteOn);                                                           // Send packet to the MIDI USB bus
-    Serial1.write(0x90 | channel);                                                      // Send event type/channel to the MIDI serial bus
-    Serial1.write(pitch);                                                               // Send note number to the MIDI serial bus
-    Serial1.write(velocity);                                                            // Send velocity value to the MIDI serial bus
-    // delay(1);                                                                           // Dropping notes.  Testing a 1ms delay before flush to ensure only 1 packet per millisecond (31250bps: / 32(packet size) = 976.5 packets per second)
-    // MidiUSB.flush();                                                                    // Flush the USB buffer
-    // Serial1.flush();                                                                    // Flush the serial buffer
+    channel = 0x90 | channel;                                                   // Bitwise OR outside of the struct to prevent compiler warnings
+    midiEventPacket_t noteOn = {0x09, channel, pitch, velocity};                // noteOn Build a struct containing all of our information in a single packet
+    MidiUSB.sendMIDI(noteOn);                                                   // Send packet to the MIDI USB bus
+    Serial1.write(0x90 | channel);                                              // Send event type/channel to the MIDI serial bus
+    Serial1.write(pitch);                                                       // Send note number to the MIDI serial bus
+    Serial1.write(velocity);                                                    // Send velocity value to the MIDI serial bus
 }
+void loopNoteOn(byte channel, byte pitch, byte velocity)
+{
+    byte myVelocity = constrain( ( (velocity * looperVelocity) / 1000), 0, 127);
+    channel = 0x90 | channel;                                                   // Bitwise OR outside of the struct to prevent compiler warnings
+    midiEventPacket_t noteOn = {0x09, channel, pitch, myVelocity};                // Build a struct containing all of our information in a single packet
+    MidiUSB.sendMIDI(noteOn);                                                   // Send packet to the MIDI USB bus
+    Serial1.write(0x90 | channel);                                              // Send event type/channel to the MIDI serial bus
+    Serial1.write(pitch);                                                       // Send note number to the MIDI serial bus
+    Serial1.write(velocity);                                                    // Send velocity value to the MIDI serial bus
+}
+
 
 // Send MIDI Note Off
 // 1st byte = Event type (0x09 = note on, 0x08 = note off).
-// 2nd byte = Event type combined with MIDI channel.
+// 2nd byte = Event type bitwise ORed with MIDI channel.
 // 3rd byte = MIDI note number.
 // 4th byte = Velocity (7-bit range 0-127)
 void noteOff(byte channel, byte pitch, byte velocity)
 {
-    // Looper functions (these need to run every time a MIDI packet function is called, otherwise the looper would only intercept the most recent event in any single program loop)
-    if ((channel >= 0 && channel < 4) || channel == 9) // If channel is 0 (left deck), 1 (right deck), 2 (left layer), 3 (right layer), or 9 (drums channel)
+    if (loopRecordingEnabled == HIGH && loopTrackActive[channel] == LOW)                                    // If loop recording enabled, and track available for recording
     {
-        midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
-        byte eventType = 0;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
-        byte myTrack;                                                                                               // Initialize track value
-        // Record notes to the looper
-        if (loopRecordingEnabled == HIGH && loopInMemory == HIGH && currentLoopIteration == previousLoopIteration)
-        {
-            if (midiPacketIndex > previousMidiPacketIndex)                                                          // If the MIDI packet index has been incremented (meaning a new event has occurred)
-            {
-                if (channel == 9 && leftDeckDrumsModeEnabled == HIGH && loopTrackActive[11] == HIGH && loopDrumsInMemory == LOW)    // If drums mode is enabled, and there isn't already a drums track recorded
-                {
-                    myTrack = 11;                                                                                   // Track 11 reserved for MIDI percussion channel 9
-                    loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                    loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                    loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = pitch;                                       // Save the note/cc number/pitch bend low byte
-                    loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = velocity;                                    // Save the velocity/cc value, pitch bend high byte
-                    loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                    loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                    loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
-                }
-                if (channel == 0)                                                                                   // If the current packet's channel is 0 (left deck), find the loop track assigned to 0, and set myTrack to this
-                {
-                    myTrack = leftDeckInputTrack;
-                    goto continueNoteOff;
-                }
-                if (channel == 1)                                                                                   // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
-                {
-                    myTrack = rightDeckInputTrack;
-                    goto continueNoteOff;
-                }
-                if (channel == 2)                                                                                   // If the current packet's channel is 2 (left layer), find the loop track assigned to 2, and set myTrack to this
-                {
-                    myTrack = leftDeckLayerInputTrack;
-                    goto continueNoteOff;
-                }
-                if (channel == 3)                                                                                   // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
-                {
-                    myTrack = rightDeckLayerInputTrack;
-                    goto continueNoteOff;
-                }
-                else
-                {
-                    goto invalidNoteOff;
-                }
-                continueNoteOff:
-                loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = pitch;                                       // Save the note/cc number/pitch bend low byte
-                loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = velocity;                                    // Save the velocity/cc value, pitch bend high byte
-                loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
-            }
-            invalidNoteOff:
-            previousMidiPacketIndex = midiPacketIndex;                                                          // Save the "previous" variable for comparison on next program loop
-        }
+        loopPacketEventTime[channel][loopRecordingIndex[channel]] = (currentTime - loopStartTimestamp);     // Record event time in relation to loop start
+        loopPacketByte0[channel][loopRecordingIndex[channel]] = 0;                                          // Record event type (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
+        loopPacketByte1[channel][loopRecordingIndex[channel]] = pitch;                                      // Record pitch/control/highByte
+        loopPacketByte2[channel][loopRecordingIndex[channel]] = velocity;                                   // Record velocity/value/lowByte
+        loopRecordingIndex[channel] = loopRecordingIndex[channel] + 1;                                      // Increment the recording index
     }
-    midiEventPacket_t noteOff = {0x08, 0x80 | channel, pitch, velocity};                // Build a struct containing all of our information in a single packet
-    MidiUSB.sendMIDI(noteOff);                                                          // Send packet to the MIDI USB bus
-    Serial1.write(0x80 | channel);                                                      // Send event type/channel to the MIDI serial bus
-    Serial1.write(pitch);                                                               // Send note number to the MIDI serial bus
-    Serial1.write(velocity);                                                            // Send velocity value to the MIDI serial bus
-    // delay(1);                                                                           // Dropping notes.  Testing a 1ms delay before flush to ensure only 1 packet per millisecond (31250bps / 32(packet size) = 976.5 packets per second)
-    // MidiUSB.flush();                                                                    // Flush the USB buffer
-    // Serial1.flush();                                                                    // Flush the serial buffer
+    channel = 0x80 | channel;                                                   // Bitwise OR outside of the struct to prevent compiler warnings
+    midiEventPacket_t noteOff = {0x08, channel, pitch, velocity};               // Build a struct containing all of our information in a single packet
+    MidiUSB.sendMIDI(noteOff);                                                  // Send packet to the MIDI USB bus
+    Serial1.write(0x80 | channel);                                              // Send event type/channel to the MIDI serial bus
+    Serial1.write(pitch);                                                       // Send note number to the MIDI serial bus
+    Serial1.write(velocity);                                                    // Send velocity value to the MIDI serial bus
+}
+void loopNoteOff(byte channel, byte pitch, byte velocity)
+{
+    channel = 0x80 | channel;                                                   // Bitwise OR outside of the struct to prevent compiler warnings
+    midiEventPacket_t noteOff = {0x08, channel, pitch, velocity};               // Build a struct containing all of our information in a single packet
+    MidiUSB.sendMIDI(noteOff);                                                  // Send packet to the MIDI USB bus
+    Serial1.write(0x80 | channel);                                              // Send event type/channel to the MIDI serial bus
+    Serial1.write(pitch);                                                       // Send note number to the MIDI serial bus
+    Serial1.write(velocity);                                                    // Send velocity value to the MIDI serial bus
 }
 
 // Control Change
 // 1st byte = Event type (0x0B = Control Change).
-// 2nd byte = Event type combined with MIDI channel.
+// 2nd byte = Event type bitwise ORed with MIDI channel.
 // 3rd byte = MIDI CC number (7-bit range 0-127).
 // 4th byte = Control value (7-bit range 0-127).
 void controlChange(byte channel, byte control, byte value)
 {
-    // Looper functions (these need to run every time a MIDI packet function is called, otherwise the looper would only intercept the most recent event in any single program loop)
-    if (channel == 1 || channel == 3) // If channel is 1 (right deck), or 3 (right layer) -- modulation doesn't affect left deck, and isn't applicable to drums
+    if (loopRecordingEnabled == HIGH && loopTrackActive[channel] == LOW)                                    // If loop recording enabled, and track available for recording
     {
-        midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
-        byte eventType = 2;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
-        byte myTrack;                                                                                               // Initialize track value
-        // Record notes to the looper
-        if (loopRecordingEnabled == HIGH && loopInMemory == HIGH && currentLoopIteration == previousLoopIteration)
-        {
-            if (midiPacketIndex > previousMidiPacketIndex)                                                          // If the MIDI packet index has been incremented (meaning a new event has occurred)
-            {
-                 if (channel == 1)                                                                                   // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
-                {
-                    myTrack = rightDeckInputTrack;
-                    goto continueControlChange;
-                }
-                if (channel == 3 && rightDeckLayerNotesEnabled == HIGH)                                             // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
-                {
-                    myTrack = rightDeckLayerInputTrack;
-                    goto continueControlChange;
-                }
-                else
-                {
-                    goto invalidControlChange;
-                }
-                continueControlChange:
-                loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = control;                                     // Save the note/cc number/pitch bend low byte
-                loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = value;                                       // Save the velocity/cc value, pitch bend high byte
-                loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
-            }
-            invalidControlChange:
-            previousMidiPacketIndex = midiPacketIndex;                                                          // Save the "previous" variable for comparison on next program loop
-        }
+        loopPacketEventTime[channel][loopRecordingIndex[channel]] = (currentTime - loopStartTimestamp);     // Record event time in relation to loop start
+        loopPacketByte0[channel][loopRecordingIndex[channel]] = 2;                                          // Record event type (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
+        loopPacketByte1[channel][loopRecordingIndex[channel]] = control;                                    // Record pitch/control/highByte
+        loopPacketByte2[channel][loopRecordingIndex[channel]] = value;                                      // Record velocity/value/lowByte
+        loopRecordingIndex[channel] = loopRecordingIndex[channel] + 1;                                      // Increment the recording index
     }
-    midiEventPacket_t event = {0x0B, 0xB0 | channel, control, value};                   // Build a struct containing all of our information in a single packet
-    MidiUSB.sendMIDI(event);                                                            // Send packet to the MIDI USB bus
-    Serial1.write(0xB0 | channel);                                                      // Send event type/channel to the MIDI serial bus
-    Serial1.write(control);                                                             // Send control change number to the MIDI serial bus
-    Serial1.write(value);                                                               // Send control chnage value to the MIDI serial bus
-    // delay(1);                                                                           // Dropping notes.  Testing a 1ms delay before flush to ensure only 1 packet per millisecond (31250bps / 32(packet size) = 976.5 packets per second)
-    // MidiUSB.flush();                                                                    // Flush the USB buffer
-    // Serial1.flush();                                                                    // Flush the serial buffer
+    channel = 0xB0 | channel;                                                   // Bitwise OR outside of the struct to prevent compiler warnings
+    midiEventPacket_t event = {0x0B, channel, control, value};                  // Build a struct containing all of our information in a single packet
+    MidiUSB.sendMIDI(event);                                                    // Send packet to the MIDI USB bus
+    Serial1.write(0xB0 | channel);                                              // Send event type/channel to the MIDI serial bus
+    Serial1.write(control);                                                     // Send control change number to the MIDI serial bus
+    Serial1.write(value);                                                       // Send control chnage value to the MIDI serial bus
+}
+void loopControlChange(byte channel, byte control, byte value)
+{
+    channel = 0xB0 | channel;                                                   // Bitwise OR outside of the struct to prevent compiler warnings
+    midiEventPacket_t event = {0x0B, channel, control, value};                  // Build a struct containing all of our information in a single packet
+    MidiUSB.sendMIDI(event);                                                    // Send packet to the MIDI USB bus
+    Serial1.write(0xB0 | channel);                                              // Send event type/channel to the MIDI serial bus
+    Serial1.write(control);                                                     // Send control change number to the MIDI serial bus
+    Serial1.write(value);                                                       // Send control chnage value to the MIDI serial bus
 }
 
 // Program Change
 // 1st byte = Event type (0x0C = Program Change).
-// 2nd byte = Event type combined with MIDI channel.
+// 2nd byte = Event type bitwise ORed with MIDI channel.
 // 3rd byte = Program value (7-bit range 0-127).
 void programChange(byte channel, byte value)
 {
-    midiEventPacket_t event = {0x0C, 0xC0 | channel, value};                            // Build a struct containing all of our information in a single packet
-    MidiUSB.sendMIDI(event);                                                            // Send packet to the MIDI USB bus
-    Serial1.write(0xC0 | channel);                                                      // Send event type/channel to the MIDI serial bus
-    Serial1.write(value);                                                               // Send program change value to the MIDI serial bus
-    // delay(1);                                                                           // Dropping notes.  Testing a 1ms delay before flush to ensure only 1 packet per millisecond (31250bps / 32(packet size) = 976.5 packets per second)
-    // MidiUSB.flush();                                                                    // Flush the USB buffer
-    // Serial1.flush();                                                                    // Flush the serial buffer
+    channel = 0xC0 | channel;                                                   // Bitwise OR outside of the struct to prevent compiler warnings
+    midiEventPacket_t event = {0x0C, channel, value};                           // Build a struct containing all of our information in a single packet
+    MidiUSB.sendMIDI(event);                                                    // Send packet to the MIDI USB bus
+    Serial1.write(0xC0 | channel);                                              // Send event type/channel to the MIDI serial bus
+    Serial1.write(value);                                                       // Send program change value to the MIDI serial bus
 }
 
 // Pitch Bend
 // (14 bit value 0-16363, neutral position = 8192)
 // 1st byte = Event type (0x0E = Pitch bend change).
-// 2nd byte = Event type combined with MIDI channel.
+// 2nd byte = Event type bitwise ORed with MIDI channel.
 // 3rd byte = The 7 least significant bits of the value.
 // 4th byte = The 7 most significant bits of the value.
 void pitchBendChange(byte channel, byte lowValue, byte highValue)
 {
-    // Looper functions (these need to run every time a MIDI packet function is called, otherwise the looper would only intercept the most recent event in any single program loop)
-    if (channel == 1 || channel == 3) // If channel is 1 (right deck), or 3 (right layer) -- pitch bend doesn't affect left deck, and isn't applicable to drums
+    if (loopRecordingEnabled == HIGH && loopTrackActive[channel] == LOW)                                    // If loop recording enabled, and track available for recording
     {
-        midiPacketIndex = midiPacketIndex + 1;                                                                      // Increment the MIDI packet index for the looper
-        byte eventType = 3;                                                                                         // Save event type for looper (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
-        byte myTrack;                                                                                               // Initialize track value
-        // Record notes to the looper
-        if (loopRecordingEnabled == HIGH && loopInMemory == HIGH && currentLoopIteration == previousLoopIteration)
-        {
-            if (midiPacketIndex > previousMidiPacketIndex)                                                          // If the MIDI packet index has been incremented (meaning a new event has occurred)
-            {
-                if (channel == 1)                                                                                   // If the current packet's channel is 1 (right deck), find the loop track assigned to 1, and set myTrack to this
-                {
-                    myTrack = rightDeckInputTrack;
-                    goto continuePitchBendChange;
-                }
-                if (channel == 3 && rightDeckLayerNotesEnabled == HIGH)                                             // If the current packet's channel is 3 (right layer), find the loop track assigned to 3, and set myTrack to this
-                {
-                    myTrack = rightDeckLayerInputTrack;
-                    goto continuePitchBendChange;
-                }
-                else
-                {
-                    goto invalidPitchBendChange;
-                }
-                continuePitchBendChange:
-                loopTrackEventType[myTrack][loopTrackIndex[myTrack]] = eventType;                               // Save the event type (0 = noteOff, 1 = noteOn, 2 = controlChange, 3 = pitchBendChange)
-                loopTrackChannel[myTrack][loopTrackIndex[myTrack]] = loopTrackOutputChannel[myTrack];           // Save the channel for this packet
-                loopTrackByte3[myTrack][loopTrackIndex[myTrack]] = lowValue;                                    // Save the note/cc number/pitch bend low byte
-                loopTrackByte4[myTrack][loopTrackIndex[myTrack]] = highValue;                                   // Save the velocity/cc value, pitch bend high byte
-                loopTrackEventTime[myTrack][loopTrackIndex[myTrack]] = currentTime - loopStartTime;             // Save the relative event time vs loopStartTime
-                loopTrackIndex[myTrack] = loopTrackIndex[myTrack] + 1;                                          // Increment the index counter for this track
-                loopTrackHighestIndex[myTrack] = loopTrackIndex[myTrack];                                       // Record the highest index reached thus far
-            }
-            invalidPitchBendChange:
-            previousMidiPacketIndex = midiPacketIndex;                                                          // Save the "previous" variable for comparison on next program loop
-        }
+        loopPacketEventTime[channel][loopRecordingIndex[channel]] = (currentTime - loopStartTimestamp);     // Record event time in relation to loop start
+        loopPacketByte0[channel][loopRecordingIndex[channel]] = 3;                                          // Record event type (1 = noteOn, 0 = noteOff, 2 = controlChange, 3 = pitchBendChange)
+        loopPacketByte1[channel][loopRecordingIndex[channel]] = lowValue;                                   // Record pitch/control/highByte
+        loopPacketByte2[channel][loopRecordingIndex[channel]] = highValue;                                  // Record velocity/value/lowByte
+        loopRecordingIndex[channel] = loopRecordingIndex[channel] + 1;                                      // Increment the recording index
     }
-    midiEventPacket_t bendEvent = {0x0E, 0xE0 | channel, lowValue, highValue};          // Build a struct containing all of our information in a single packet
-    MidiUSB.sendMIDI(bendEvent);                                                        // Send packet to the MIDI USB bus
-    Serial1.write(0xE0 | channel);                                                      // Send event type/channel to the MIDI serial bus
-    Serial1.write(lowValue);                                                            // Send pitch bend low byte to the MIDI serial bus
-    Serial1.write(highValue);                                                           // Send pitch bend high byte to the MIDI serial bus
-    // delay(1);                                                                           // Dropping notes.  Testing a 1ms delay before flush to ensure only 1 packet per millisecond (31250bps / 32(packet size) = 976.5 packets per second)
-    // MidiUSB.flush();                                                                    // Flush the USB buffer
-    // Serial1.flush();                                                                    // Flush the serial buffer
+    channel = 0xE0 | channel;                                                   // Bitwise OR outside of the struct to prevent compiler warnings
+    midiEventPacket_t bendEvent = {0x0E, channel, lowValue, highValue};         // Build a struct containing all of our information in a single packet
+    MidiUSB.sendMIDI(bendEvent);                                                // Send packet to the MIDI USB bus
+    Serial1.write(0xE0 | channel);                                              // Send event type/channel to the MIDI serial bus
+    Serial1.write(lowValue);                                                    // Send pitch bend low byte to the MIDI serial bus
+    Serial1.write(highValue);                                                   // Send pitch bend high byte to the MIDI serial bus
+}
+void loopPitchBendChange(byte channel, byte lowValue, byte highValue)
+{
+    channel = 0xE0 | channel;                                                   // Bitwise OR outside of the struct to prevent compiler warnings
+    midiEventPacket_t bendEvent = {0x0E, channel, lowValue, highValue};         // Build a struct containing all of our information in a single packet
+    MidiUSB.sendMIDI(bendEvent);                                                // Send packet to the MIDI USB bus
+    Serial1.write(0xE0 | channel);                                              // Send event type/channel to the MIDI serial bus
+    Serial1.write(lowValue);                                                    // Send pitch bend low byte to the MIDI serial bus
+    Serial1.write(highValue);                                                   // Send pitch bend high byte to the MIDI serial bus
 }
 
 // END FUNCTIONS SECTION
